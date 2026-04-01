@@ -1,0 +1,13 @@
+{
+  "short_name": "Coup d’État",
+  "name": "Coup d’État – Das kooperative Kartenspiel",
+  "icons": [
+    {"src":"icon.png","sizes":"512x512","type":"image/png","purpose":"any maskable"},
+    {"src":"icon192.png","sizes":"192x192","type":"image/png"}
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f0c29",
+  "background_color": "#0f0c29"
+}
