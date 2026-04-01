@@ -2,20 +2,52 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- Theme & PWA -->
     <meta name="theme-color" content="#0f0c29" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Coup d’État" />
-    <meta name="description" content="Coup d’État – Das kooperative Kartenspiel" />
-    <link rel="icon" href="%PUBLIC_URL%/icon.png" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Coup d'État" />
+
+    <!-- SEO / Description -->
+    <meta name="description" content="Coup d'État – Das kooperative Kartenspiel gegen die Könige" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="512x512" href="%PUBLIC_URL%/icon-512.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/icon-192.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+
+    <!-- PWA Manifest -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <title>Coup d’État</title>
+
+    <title>Coup d'État</title>
+
     <style>
-      *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
-      body{margin:0;background:#0f0c29;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+      * {
+        -webkit-tap-highlight-color: transparent;
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #0f0c29;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior: none;
+      }
+      /* Prevent iOS rubber-band scroll */
+      html, body {
+        height: 100%;
+        overflow: hidden;
+      }
+      #root {
+        height: 100%;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
     </style>
   </head>
   <body>
