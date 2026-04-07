@@ -41,32 +41,29 @@ const CARD_THEMES = {
   fantasy: {
     name_de: "Fantasy",
     name_en: "Fantasy",
-    cardBg: "from-indigo-900 to-purple-900",
-    cardBorder: "border-yellow-400",
-    cardText: "text-yellow-200",
-    enemyBg: "from-red-900 to-gray-900",
-    tableBg: "from-green-900 via-emerald-900 to-teal-900",
     accentColor: "yellow",
   },
   classic: {
     name_de: "Klassisch",
     name_en: "Classic",
-    cardBg: "from-gray-100 to-white",
-    cardBorder: "border-gray-400",
-    cardText: "text-gray-900",
-    enemyBg: "from-red-700 to-red-900",
-    tableBg: "from-green-700 via-green-800 to-green-900",
     accentColor: "green",
   },
   dark: {
     name_de: "Dunkel",
     name_en: "Dark",
-    cardBg: "from-gray-900 to-gray-800",
-    cardBorder: "border-red-600",
-    cardText: "text-red-300",
-    enemyBg: "from-black to-red-950",
-    tableBg: "from-gray-950 via-gray-900 to-gray-800",
     accentColor: "red",
+  },
+};
+
+// Two alternative GAME layouts (selectable in menu)
+const GAME_LAYOUTS = {
+  arena: {
+    name_de: "Arena",
+    name_en: "Arena",
+  },
+  dashboard: {
+    name_de: "Dashboard",
+    name_en: "Dashboard",
   },
 };
 
@@ -176,41 +173,45 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
   );
 }
 
-// ─── Enemy Card ───────────────────────────────────────────────────────────────
+// ─── Enemy Card Component ───────────────────────────────────────────────────────
 function EnemyCard({ enemy, lang }) {
   const isRed = enemy.suit === "♥" || enemy.suit === "♦";
-  const hpPercent = Math.max(0, (enemy.currentHp / enemy.hp) * 100);
-  const rankName = lang === "de"
-    ? (enemy.rank === "J" ? "Bube" : enemy.rank === "Q" ? "Dame" : "König")
-    : (enemy.rank === "J" ? "Jack" : enemy.rank === "Q" ? "Queen" : "King");
-  const suitName = lang === "de" ? SUIT_NAMES_DE[enemy.suit] : SUIT_NAMES_EN[enemy.suit];
+  const hpPct = Math.max(0, Math.min(100, (enemy.currentHp / enemy.hp) * 100));
+  const hpColor = hpPct > 60 ? "#4ade80" : hpPct > 30 ? "#facc15" : "#f87171";
   return (
-    <div className="relative p-3 w-full rounded-2xl"
-      style={{ background: "rgba(220,38,38,0.18)", backdropFilter: "blur(24px)", border: "1.5px solid rgba(252,165,165,0.35)", boxShadow: "0 8px 32px rgba(220,38,38,0.25), inset 0 1px 0 rgba(255,200,200,0.2)" }}>
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <div className={`text-3xl font-black drop-shadow-lg ${isRed ? "text-red-300" : "text-white"}`}>{enemy.suit}</div>
-          <div className="text-white font-black text-lg tracking-wider">{enemy.rank}</div>
+    <div className="rounded-2xl p-3 space-y-2" style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-3xl drop-shadow">{enemy.rank}</span>
+          <span className={`text-2xl ${isRed ? "text-red-400" : "text-white"}`}>{enemy.suit}</span>
+          <div>
+            <p className="text-white/80 font-black text-sm leading-tight">
+              {lang === "de" ? (enemy.rank === "J" ? "Bube" : enemy.rank === "Q" ? "Dame" : "König") : (enemy.rank === "J" ? "Jack" : enemy.rank === "Q" ? "Queen" : "King")}
+            </p>
+            <p className={`text-xs font-bold ${isRed ? "text-red-300" : "text-gray-300"}`}>
+              {lang === "de" ? SUIT_NAMES_DE[enemy.suit] : SUIT_NAMES_EN[enemy.suit]}
+            </p>
+          </div>
         </div>
         <div className="text-right">
-          <div className="text-red-300 text-xs font-semibold uppercase tracking-wider mb-0.5">{t(lang, "Angriff", "Attack")}</div>
-          <div className="text-white font-black text-xl">{enemy.attack}</div>
+          <p className="text-white/50 text-xs">{lang === "de" ? "Angriff" : "Attack"}</p>
+          <p className="text-red-300 font-black text-lg">⚔️ {enemy.attack}</p>
         </div>
       </div>
-      <div className="mb-2">
-        <div className="flex justify-between text-xs font-semibold mb-1">
-          <span className="text-white/70">HP</span>
-          <span className="text-white font-bold">{enemy.currentHp}/{enemy.hp}</span>
+      <div>
+        <div className="flex justify-between text-xs text-white/50 mb-1">
+          <span>HP</span>
+          <span>{enemy.currentHp} / {enemy.hp}</span>
         </div>
-        <div className="w-full rounded-full h-2.5" style={{ background: "rgba(255,255,255,0.1)", boxShadow: "inset 0 1px 3px rgba(0,0,0,0.4)" }}>
-          <div className="h-2.5 rounded-full transition-all duration-500" style={{ width: `${hpPercent}%`, background: hpPercent > 50 ? "linear-gradient(90deg,#34d399,#6ee7b7)" : hpPercent > 25 ? "linear-gradient(90deg,#fbbf24,#fde68a)" : "linear-gradient(90deg,#f87171,#fca5a5)", boxShadow: hpPercent > 50 ? "0 0 8px #34d399bb" : hpPercent > 25 ? "0 0 8px #fbbf24bb" : "0 0 8px #f87171bb" }} />
+        <div className="w-full rounded-full h-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+          <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${hpPct}%`, background: hpColor, boxShadow: `0 0 8px ${hpColor}` }} />
         </div>
       </div>
-      <div className="text-sm text-white font-semibold text-center">{rankName} {suitName}</div>
       {enemy.immuneSuit && (
-        <div className="mt-2 text-xs font-bold text-yellow-300 text-center rounded-lg py-1" style={{ background: "rgba(234,179,8,0.1)" }}>
-          🛡 {t(lang, "Immun", "Immune")}: {enemy.immuneSuit}
-        </div>
+        <p className="text-xs text-yellow-300/80 font-bold">🛡 {lang === "de" ? `Immun gegen ${SUIT_NAMES_DE[enemy.immuneSuit]}` : `Immune to ${SUIT_NAMES_EN[enemy.immuneSuit]}`}</p>
+      )}
+      {enemy.jesterCancelled && (
+        <p className="text-xs text-purple-300/80 font-bold">🃏 {lang === "de" ? "Immunität aufgehoben" : "Immunity cancelled"}</p>
       )}
     </div>
   );
@@ -220,6 +221,7 @@ function EnemyCard({ enemy, lang }) {
 export default function RegicideApp() {
   const [lang, setLang] = useState("de");
   const [theme, setTheme] = useState("fantasy");
+  const [gameLayout, setGameLayout] = useState("arena");
   const [screen, setScreen] = useState("menu"); // menu, setup, game, gameover, victory
   const [numPlayers, setNumPlayers] = useState(1);
   const [game, setGame] = useState(null);
@@ -371,11 +373,16 @@ export default function RegicideApp() {
     }, 0);
   };
 
+  // Helper: count distinct suits among cards (for same-suit Animal Companion dedup)
+  const countDistinctSuits = (cards, suit) => cards.filter((c) => c.suit === suit).length;
+
   // Suit powers use BASE attack value (not doubled by clubs) per the rules:
   // "3 of Diamonds, Spades and Clubs → draw 9 cards, reduce by 9, deal 18"
+  // Rule: Animal Companion + same-suit card → suit power only applied ONCE
   const applyHearts = (g, cards, baseAttack) => {
     const heartsCards = cards.filter((c) => c.suit === "♥" && c.type !== "jester");
     if (heartsCards.length === 0) return g;
+    // Rule: Animal Companion + same-suit card → power only once (already baseAttack covers this)
     const enemyImmuneToHearts = g.currentEnemy.suit === "♥" && !g.currentEnemy.jesterCancelled;
     if (enemyImmuneToHearts) { addLog(t(lang, "♥ Immunität – Heilung blockiert", "♥ Immune – heal blocked")); return g; }
     const healValue = baseAttack; // base value, not clubs-doubled
@@ -390,6 +397,7 @@ export default function RegicideApp() {
   const applyDiamonds = (g, cards, players, baseAttack) => {
     const diamondCards = cards.filter((c) => c.suit === "♦" && c.type !== "jester");
     if (diamondCards.length === 0) return { g, players };
+    // Rule: Animal Companion + same-suit ♦ card → power only once (baseAttack already sums values once)
     const enemyImmuneToD = g.currentEnemy.suit === "♦" && !g.currentEnemy.jesterCancelled;
     if (enemyImmuneToD) { addLog(t(lang, "♦ Immunität – Ziehen blockiert", "♦ Immune – draw blocked")); return { g, players }; }
     const drawCount = baseAttack; // base value, not clubs-doubled
@@ -418,7 +426,8 @@ export default function RegicideApp() {
     if (spadeCards.length === 0) return enemy;
     const enemyImmuneToS = enemy.suit === "♠" && !enemy.jesterCancelled;
     if (enemyImmuneToS) { addLog(t(lang, "♠ Immunität – Schild blockiert", "♠ Immune – shield blocked")); return enemy; }
-    const shieldValue = baseAttack; // base value, not clubs-doubled
+    // Rule: Animal Companion + same-suit ♠ card → shield power only once (use baseAttack, which sums all card values once)
+    const shieldValue = baseAttack;
     const newAttack = Math.max(0, enemy.attack - shieldValue);
     addLog(`♠ ${t(lang, `Schild: Feind-Angriff ${enemy.attack} → ${newAttack} (kumulativ)`, `Shield: Enemy attack ${enemy.attack} → ${newAttack} (cumulative)`)}`);
     return { ...enemy, attack: newAttack };
@@ -431,30 +440,43 @@ export default function RegicideApp() {
     if (timing === "step4" && phase !== "discard") return;
     const maxHand = 8;
     let drawPile = [...game.drawPile];
+    // Discard current hand, refill to 8 — enemy immunity stays unchanged
     const discardPile = [...game.discardPile, ...game.players[0].hand];
     const newHand = drawPile.splice(0, maxHand);
     const newPlayers = [{ ...game.players[0], hand: newHand }];
     setSoloJestersUsed((p) => p + 1);
     setSoloJestersAvail((p) => p - 1);
-    addLog(t(lang, `\ud83c\udccf Jester umgedreht! Hand neu gezogen (${newHand.length} Karten). Immunit\u00e4t bleibt!`, `\ud83c\udccf Jester flipped! Hand refilled (${newHand.length} cards). Immunity unchanged!`));
-    setGame({ ...game, players: newPlayers, drawPile, discardPile });
-    if (timing === "step4") {
-      setPhase("play");
-      setDiscardNeeded(0);
-      setDiscardedSoFar(0);
-      setPendingNextPlayerIndex(null);
+    addLog(t(lang,
+      `🃏 Jester umgedreht! Hand neu gezogen (${newHand.length} Karten). Immunität bleibt! Zählt nicht als Karten ziehen (♦).`,
+      `🃏 Jester flipped! Hand refilled (${newHand.length} cards). Immunity unchanged! Does not count as drawing (♦).`
+    ));
+    if (timing === "step1") {
+      // Step 1: just swap hand, continue playing normally
+      setGame({ ...game, players: newPlayers, drawPile, discardPile });
+    } else {
+      // Step 4: swap hand, but player still needs to pay the damage with the new hand!
+      setGame({ ...game, players: newPlayers, drawPile, discardPile });
+      // phase stays "discard", discardNeeded stays — player pays damage with new hand
+      addLog(t(lang,
+        `⚠️ Schaden (${discardNeeded}) muss noch mit der neuen Hand bezahlt werden!`,
+        `⚠️ Damage (${discardNeeded}) still needs to be paid with the new hand!`
+      ));
     }
   };
 
   // Jester power: cancel enemy immunity
   const playJester = () => {
     if (!game) return;
+    const selectedIds = [...selectedCards];
     // Remove jester from hand
     let players = game.players.map((p, i) =>
       i === game.currentPlayerIndex
-        ? { ...p, hand: p.hand.filter((c) => !selectedCards.includes(c.id)) }
+        ? { ...p, hand: p.hand.filter((c) => !selectedIds.includes(c.id)) }
         : p
     );
+    // Rule: Jester vs ♠ enemy → spades played BEFORE jester start reducing attack now
+    // Rule: Jester vs ♣ enemy → clubs played BEFORE jester do NOT count double (already handled: clubs damage was 0 before jesterCancelled)
+    // jesterCancelled = true means future cards of same suit WILL trigger power
     const enemy = { ...game.currentEnemy, jesterCancelled: true };
     addLog(`\ud83c\udccf ${t(lang, "Jester gespielt! Gegner-Immunit\u00e4t aufgehoben. W\u00e4hle n\u00e4chsten Spieler.", "Jester played! Enemy immunity cancelled. Choose next player.")}`);
     showAnim(t(lang, "\ud83c\udccf Jester! Immunit\u00e4t aufgehoben!", "\ud83c\udccf Jester! Immunity cancelled!"));
@@ -498,8 +520,11 @@ export default function RegicideApp() {
       newPlayers[game.currentPlayerIndex] = currP;
       // Move to next player after discard
       const nextAfterDiscard = game._nextPlayerAfterDiscard ?? (game.currentPlayerIndex + 1) % numPlayers;
-      addLog(t(lang, "\u2705 Schaden bezahlt! N\u00e4chster Spieler.", "\u2705 Damage paid! Next player."));
-      setGame({ ...game, players: newPlayers, discardPile: newDiscard, drawPile, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined });
+      addLog(t(lang, "✅ Schaden bezahlt! Nächster Spieler.", "\u2705 Damage paid! Next player."));
+      const stateAfterDiscard = { ...game, players: newPlayers, discardPile: newDiscard, drawPile, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
+      if (!checkCanActAndTriggerLose(stateAfterDiscard, nextAfterDiscard, lastYielded)) {
+        setGame(stateAfterDiscard);
+      }
       setPhase("play");
       setDiscardNeeded(0);
       setDiscardedSoFar(0);
@@ -532,7 +557,6 @@ export default function RegicideApp() {
 
     // Validate combos
     if (cards.length > 1) {
-      const nonAnimal = cards.filter((c) => c.rank !== "A");
       const animals = cards.filter((c) => c.rank === "A");
       if (animals.length > 0) {
         // Animal companion: max 1 animal + 1 other card (or 2 animals)
@@ -546,6 +570,7 @@ export default function RegicideApp() {
       }
     }
 
+    const selectedIds = [...selectedCards];
     setSelectedCards([]);
     let g = { ...game };
     let players = g.players.map((p) => ({ ...p, hand: [...p.hand] }));
@@ -553,7 +578,7 @@ export default function RegicideApp() {
 
     players[g.currentPlayerIndex] = {
       ...players[g.currentPlayerIndex],
-      hand: players[g.currentPlayerIndex].hand.filter((c) => !selectedCards.includes(c.id)),
+      hand: players[g.currentPlayerIndex].hand.filter((c) => !selectedIds.includes(c.id)),
     };
 
     const baseAttack = calcBaseAttack(cards);
@@ -561,7 +586,7 @@ export default function RegicideApp() {
     // Cumulative damage: sum of previous tableCards + this attack
     const prevDamage = g.tableCards.reduce((s, c) => s + (c._dealtDamage || 0), 0);
     const totalDamageNow = prevDamage + attack;
-    const newHp = enemy.currentHp - totalDamageNow;
+    const newHp = enemy.currentHp - attack;
     // Tag cards with their total dealt damage (stored on first card for simplicity)
     const taggedCards = cards.map((c, idx) => ({ ...c, _dealtDamage: idx === 0 ? attack : 0 }));
     addLog(`⚔️ ${t(lang, `Angriff: ${attack} Schaden → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`, `Attack: ${attack} damage → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`)}`);
@@ -613,7 +638,11 @@ export default function RegicideApp() {
       }
       // Defeating player starts new turn (skips step 4); reset yield tracking
       setLastYielded([]);
-      setGame({ ...g, players, drawPile, discardPile: newDiscard, enemyDeck: remainingEnemies, currentEnemy: nextEnemy, tableCards: [] });
+      const newGameStateAfterDefeat = { ...g, players, drawPile, discardPile: newDiscard, enemyDeck: remainingEnemies, currentEnemy: nextEnemy, tableCards: [] };
+      // Check if defeating player can act on new turn
+      if (!checkCanActAndTriggerLose(newGameStateAfterDefeat, g.currentPlayerIndex, [])) {
+        setGame(newGameStateAfterDefeat);
+      }
       setPhase("play");
     } else {
       // Step 4: enemy attacks
@@ -622,12 +651,16 @@ export default function RegicideApp() {
       const nextPlayerIndex = (g.currentPlayerIndex + 1) % numPlayers;
 
       if (incomingDamage <= 0) {
+        // Spades fully blocked damage — current player refills hand, then next player goes
         let drawPile = [...g.drawPile];
         const maxHand = getHandSize(numPlayers);
         const currP = { ...players[g.currentPlayerIndex] };
         while (currP.hand.length < maxHand && drawPile.length > 0) currP.hand.push(drawPile.shift());
         players[g.currentPlayerIndex] = currP;
-        setGame({ ...g, players, drawPile, currentEnemy: enemy, currentPlayerIndex: nextPlayerIndex, tableCards });
+        const stateNoAttack = { ...g, players, drawPile, currentEnemy: enemy, currentPlayerIndex: nextPlayerIndex, tableCards };
+        if (!checkCanActAndTriggerLose(stateNoAttack, nextPlayerIndex, lastYielded)) {
+          setGame(stateNoAttack);
+        }
         setPhase("play");
         setDiscardNeeded(0);
         setDiscardedSoFar(0);
@@ -680,9 +713,10 @@ export default function RegicideApp() {
   };
 
   // Check if current player can play or yield (game-end condition)
+  // Returns true if game over was triggered
   const checkCanActAndTriggerLose = (g, playerIdx, lyielded) => {
     const player = g.players[playerIdx];
-    if (player.hand.length > 0) return; // can play → fine
+    if (player.hand.length > 0) return false; // has cards → can play
     // Empty hand: check if yield is possible
     const others = g.players.map((_, i) => i).filter((i) => i !== playerIdx);
     const allOthersYielded = others.length > 0 && others.every((i) => lyielded.includes(i));
@@ -691,7 +725,9 @@ export default function RegicideApp() {
       addLog(t(lang, "Keine Karten und kein Passen m\u00f6glich \u2013 Niederlage!", "No cards and cannot yield \u2013 defeat!"));
       setGame({ ...g, lost: true });
       setScreen("gameover");
+      return true;
     }
+    return false;
   };
 
   // ── Menu Screen ──────────────────────────────────────────────────────────────
@@ -705,7 +741,7 @@ export default function RegicideApp() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "radial-gradient(ellipse, #f472b6, transparent 70%)" }} />
 
         <div className="text-center mb-8 relative">
-          <h1 className="text-7xl md:text-8xl font-black mb-2 drop-shadow-2xl" style={{ color: "rgba(255,255,255,0.95)", textShadow: "0 0 40px rgba(255,255,255,0.3)" }}>⚔️ Coup d'État <span className="text-xs font-normal align-middle opacity-50">v. 1.0</span></h1>
+          <h1 className="text-7xl md:text-8xl font-black mb-2 drop-shadow-2xl" style={{ color: "rgba(255,255,255,0.95)", textShadow: "0 0 40px rgba(255,255,255,0.3)" }}>⚔️ Coup d'État <span className="text-xs font-normal align-middle opacity-50">v. 1.1</span></h1>
           <p className="text-white/60 text-lg">{t(lang, "Das kooperative Kartenspiel", "The cooperative card game")}</p>
         </div>
 
@@ -725,6 +761,18 @@ export default function RegicideApp() {
               {Object.entries(CARD_THEMES).map(([key, th]) => (
                 <button key={key} onClick={() => setTheme(key)} className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${theme === key ? "bg-white/90 text-gray-900 shadow-lg" : `${glass.btn} text-white/70`}`}>
                   {lang === "de" ? th.name_de : th.name_en}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Game Layout */}
+          <div>
+            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Layout", "Layout")}</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              {Object.entries(GAME_LAYOUTS).map(([key, lo]) => (
+                <button key={key} onClick={() => setGameLayout(key)} className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${gameLayout === key ? "bg-white/90 text-gray-900 shadow-lg" : `${glass.btn} text-white/70`}`}>
+                  {lang === "de" ? lo.name_de : lo.name_en}
                 </button>
               ))}
             </div>
@@ -819,229 +867,230 @@ export default function RegicideApp() {
   const attackValue = calcAttack(selectedCardObjs, game.currentEnemy);
   const prevDamageDisplay = game.tableCards.reduce((s, c) => s + (c._dealtDamage || 0), 0);
   const totalDamageDisplay = prevDamageDisplay + attackValue;
-  // Immune: enemy is immune to its own suit (unless jesterCancelled)
   const enemyImmuneSuit = game.currentEnemy.jesterCancelled ? null : game.currentEnemy.suit;
   const enemyRemainingHp = game.currentEnemy.currentHp;
-  const totalDefeated = 12 - (game.enemyDeck.length + 1);
-  const totalEnemies = 12;
   const remainingEnemies = game.enemyDeck.length + 1;
+  const totalEnemies = 12;
+
+  const ActionBar = () => (
+    <div className="p-2 md:p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)" }}>
+      <div className="flex items-center gap-2 flex-wrap">
+        {phase === "jester" && (
+          <div className="flex-1 px-3 py-2 rounded-xl" style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)" }}>
+            <p className="text-purple-200 font-bold text-sm">🃏 {t(lang, "Jester! Wähle nächsten Spieler:", "Jester! Choose next player:")}</p>
+            <div className="flex gap-2 mt-1 flex-wrap">
+              {game.players.map((_, pi) => (
+                <button key={pi} onClick={() => chooseNextPlayer(pi)} className={"px-3 py-1 text-white/90 text-sm font-bold rounded-lg " + glass.btnPurple}>
+                  {t(lang, "Spieler " + (pi + 1), "Player " + (pi + 1))}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {phase === "discard" && (
+          <div className="flex-1 px-3 py-2 rounded-xl" style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)" }}>
+            <p className="text-red-300 font-bold text-sm">⚠️ {t(lang, "Schaden abdecken!", "Cover damage!")}</p>
+            <p className="text-white/70 text-xs">{t(lang, "Noch " + Math.ceil(discardNeeded) + " Schaden zu decken", "Still " + Math.ceil(discardNeeded) + " damage to cover")}</p>
+          </div>
+        )}
+        {phase === "play" && selectedCards.length > 0 && (
+          <div className="text-sm text-white/70">
+            {selectedCards.length} {t(lang, "Karte(n)", "card(s)")} · <span className="text-white font-bold">⚔️ {attackValue}</span>
+            {" ("}<span className="text-orange-400">{t(lang, "Gesamt: " + totalDamageDisplay, "Total: " + totalDamageDisplay)}</span>{")"}
+            {totalDamageDisplay >= enemyRemainingHp && (
+              <span className="ml-2 text-emerald-300 text-xs font-bold">✓ {t(lang, "Reicht!", "Enough!")}</span>
+            )}
+          </div>
+        )}
+        <div className="flex gap-2 ml-auto flex-wrap">
+          {phase === "play" && selectedCards.length > 0 && (
+            <button onClick={() => setSelectedCards([])} className={"px-3 py-2 text-white/80 text-sm " + glass.btn}>{t(lang, "Abwählen", "Deselect")}</button>
+          )}
+          {numPlayers === 1 && soloJestersAvail > 0 && phase === "play" && (
+            <button onClick={() => soloFlipJester("step1")} className={"px-3 py-2 text-sm font-bold " + glass.btnPurple}>
+              🃏 {t(lang, "Jester (" + soloJestersAvail + "x)", "Jester (" + soloJestersAvail + "x)")}
+            </button>
+          )}
+          {numPlayers === 1 && soloJestersAvail > 0 && phase === "discard" && (
+            <button onClick={() => soloFlipJester("step4")} className={"px-3 py-2 text-sm font-bold " + glass.btnPurple}>
+              🃏 {t(lang, "Jester Hand tauschen (" + soloJestersAvail + "x)", "Jester swap hand (" + soloJestersAvail + "x)")}
+            </button>
+          )}
+          {phase === "play" && (
+            <>
+              <button onClick={yieldTurn} className={"px-4 py-2 font-bold text-sm " + glass.btn}>{t(lang, "Passen", "Yield")}</button>
+              <button
+                onClick={playCards}
+                disabled={selectedCards.length === 0}
+                className={"px-6 py-2 font-bold text-sm rounded-xl transition-all " + (selectedCards.length > 0 ? glass.btnPrimary : "opacity-30 cursor-not-allowed bg-white/10 text-white/30 border border-white/10 rounded-xl")}
+              >
+                ⚔️ {t(lang, "Spielen", "Play")}
+              </button>
+            </>
+          )}
+          {phase === "discard" && (
+            <span className="text-red-300 text-sm font-bold animate-pulse">👆 {t(lang, "Karte anklicken", "Click a card")}</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const PlayerHand = ({ player, pi, small }) => {
+    const isActive = pi === game.currentPlayerIndex;
+    return (
+      <div className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isActive ? "0 0 24px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.2)" : "none" }}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className={("w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ") + (isActive ? "bg-white/90 text-gray-900" : "bg-white/15 text-white")}>{pi + 1}</span>
+            <span className={("font-bold text-sm ") + (isActive ? "text-white" : "text-white/50")}>{player.name} {isActive ? "(" + t(lang, "am Zug", "active") + ")" : ""}</span>
+          </div>
+          <span className="text-white/40 text-xs">{player.hand.length} {t(lang, "Karten", "cards")}</span>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {player.hand.map((card) => (
+            <PlayingCard
+              key={card.id}
+              card={card}
+              selected={selectedCards.includes(card.id)}
+              onClick={() => {
+                if (phase === "discard" && isActive) discardCardForDamage(card.id);
+                else if (phase === "play" && isActive) toggleCardSelection(card.id);
+              }}
+              disabled={!isActive || (phase !== "play" && phase !== "discard")}
+              small={small !== undefined ? small : !isActive}
+            />
+          ))}
+          {player.hand.length === 0 && <span className="text-white/30 text-sm italic">{t(lang, "Keine Karten", "No cards")}</span>}
+        </div>
+      </div>
+    );
+  };
+
+  const SuitPowers = () => (
+    <div className="p-2 rounded-xl text-xs space-y-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <p className="text-white/70 font-bold text-xs tracking-wider">{t(lang, "Kräfte:", "Powers:")}</p>
+      {Object.entries(SUIT_POWERS_DE).map(([suit, desc]) => {
+        const isImmune = suit === enemyImmuneSuit;
+        return (
+          <div key={suit} className={("flex gap-1 text-white/60 ") + (isImmune ? "line-through opacity-30" : "")}>
+            <span>{suit}</span>
+            <span className="text-xs leading-tight">{lang === "de" ? desc.split(":")[0] : SUIT_POWERS_EN[suit].split(":")[0]}</span>
+            {isImmune && <span className="text-red-400">🛡</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const EnemyInfo = () => (
+    <div className="flex flex-col gap-2">
+      <EnemyCard enemy={{ ...game.currentEnemy, immuneSuit: enemyImmuneSuit }} lang={lang} />
+      <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+        <p className="text-white/40 text-xs mb-2">{t(lang, "Nächste Feinde:", "Next enemies:")}</p>
+        <div className="flex flex-wrap gap-1">
+          {game.enemyDeck.slice(0, 6).map((e) => (
+            <span key={e.id} className={("text-sm ") + (e.suit === "♥" || e.suit === "♦" ? "text-red-400" : "text-gray-300")}>{e.rank}{e.suit}</span>
+          ))}
+          {game.enemyDeck.length > 6 && <span className="text-white/30 text-xs">+{game.enemyDeck.length - 6}</span>}
+        </div>
+      </div>
+      {game.tableCards.length > 0 && (
+        <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+          <p className="text-white/40 text-xs mb-1">{t(lang, "Tischkarten:", "Table cards:")}</p>
+          <div className="flex flex-wrap gap-1">
+            {game.tableCards.map((c) => (
+              <span key={c.id} className={("text-sm ") + (c.suit === "♥" || c.suit === "♦" ? "text-red-400" : "text-gray-300")}>{c.rank}{c.suit}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      <SuitPowers />
+    </div>
+  );
+
+  const GameLog = ({ className }) => (
+    <div className={("p-3 rounded-2xl overflow-y-auto ") + (className || "")} style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <p className="text-white/60 font-bold text-xs mb-2 tracking-wider">{t(lang, "Spiellog", "Game Log")}</p>
+      <div className="space-y-1">
+        {log.map((entry, i) => (
+          <p key={i} className={("text-xs leading-tight ") + (i === 0 ? "text-white/90" : "text-white/35")}>{entry}</p>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen flex flex-col relative overflow-hidden"
-      style={{ background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
-      {/* background blobs */}
+    <div className="min-h-screen flex flex-col relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
       <div className="absolute top-[-120px] left-[-120px] w-[500px] h-[500px] rounded-full opacity-30 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #7c3aed, transparent 70%)" }} />
       <div className="absolute bottom-[-100px] right-[-100px] w-96 h-96 rounded-full opacity-25 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #0ea5e9, transparent 70%)" }} />
-      {/* Anim overlay */}
+
       {animMsg && (
         <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
-          <div className="text-white text-2xl font-black px-8 py-4 rounded-2xl animate-bounce"
-            style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.3)", boxShadow: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)", textShadow: "0 0 20px rgba(255,255,255,0.5)" }}>
+          <div className="text-white text-2xl font-black px-8 py-4 rounded-2xl animate-bounce" style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.3)", textShadow: "0 0 20px rgba(255,255,255,0.5)" }}>
             {animMsg}
           </div>
         </div>
       )}
 
-      {/* Top Bar */}
-      <div className="flex items-center justify-between p-2 md:p-3 relative z-10"
-        style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
-        <button onClick={() => setScreen("menu")} className="text-white/50 hover:text-white text-sm transition-colors">
-          ← {t(lang, "Menü", "Menu")}
-        </button>
+      <div className="flex items-center justify-between p-2 md:p-3 relative z-10" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
+        <button onClick={() => setScreen("menu")} className="text-white/50 hover:text-white text-sm transition-colors">← {t(lang, "Menü", "Menu")}</button>
         <div className="text-center">
-          <span className="text-white/90 font-bold text-sm tracking-widest">Coup d'État</span>
-          <div className="text-white/40 text-xs">
-            {t(lang, `Feinde übrig: ${remainingEnemies}/${totalEnemies}`, `Enemies left: ${remainingEnemies}/${totalEnemies}`)}
-          </div>
+          <span className="text-white/90 font-bold text-sm tracking-widest">Coup d’État</span>
+          <div className="text-white/40 text-xs">{t(lang, "Feinde übrig: " + remainingEnemies + "/" + totalEnemies, "Enemies left: " + remainingEnemies + "/" + totalEnemies)}</div>
         </div>
-        <div className="text-xs text-white/40">
-          {t(lang, `Stapel: ${game.drawPile.length}`, `Deck: ${game.drawPile.length}`)}
-        </div>
+        <div className="text-xs text-white/40">{t(lang, "Stapel: " + game.drawPile.length, "Deck: " + game.drawPile.length)}</div>
       </div>
 
-      <div className="flex flex-1 gap-2 p-2 md:gap-3 md:p-3 overflow-hidden relative z-10">
-        {/* Left: Enemy + Info */}
-        <div className="flex flex-col gap-2 w-36 md:w-52 shrink-0">
-          <EnemyCard enemy={{...game.currentEnemy, immuneSuit: enemyImmuneSuit}} theme={theme} lang={lang} />
-
-          {/* Enemy queue preview */}
-          <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
-            <p className="text-white/40 text-xs mb-2">{t(lang, "Nächste Feinde:", "Next enemies:")}</p>
-            <div className="flex flex-wrap gap-1">
-              {game.enemyDeck.slice(0, 6).map((e) => (
-                <span key={e.id} className={`text-sm ${e.suit === "♥" || e.suit === "♦" ? "text-red-400" : "text-gray-300"}`}>
-                  {e.rank}{e.suit}
-                </span>
-              ))}
-              {game.enemyDeck.length > 6 && <span className="text-white/30 text-xs">+{game.enemyDeck.length - 6}</span>}
-            </div>
+      {gameLayout === "arena" ? (
+        <div className="flex flex-1 gap-2 p-2 md:gap-3 md:p-3 overflow-hidden relative z-10">
+          <div className="flex flex-col gap-2 w-36 md:w-52 shrink-0">
+            <EnemyInfo />
           </div>
-
-          {/* Table cards */}
-          {game.tableCards.length > 0 && (
-            <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
-              <p className="text-white/40 text-xs mb-1">{t(lang, "Tischkarten:", "Table cards:")}</p>
-              <div className="flex flex-wrap gap-1">
-                {game.tableCards.map((c) => (
-                  <span key={c.id} className={`text-sm ${c.suit === "♥" || c.suit === "♦" ? "text-red-400" : "text-gray-300"}`}>
-                    {c.rank}{c.suit}
-                  </span>
-                ))}
-              </div>
+          <div className="flex-1 flex flex-col gap-2 overflow-hidden min-w-0">
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {game.players.map((player, pi) => <PlayerHand key={pi} player={player} pi={pi} />)}
             </div>
-          )}
-
-          {/* Suit powers reminder */}
-          <div className="p-2 rounded-xl text-xs space-y-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-            <p className="text-white/70 font-bold text-xs tracking-wider">{t(lang, "Kräfte:", "Powers:")}</p>
-            {Object.entries(SUIT_POWERS_DE).map(([suit, desc]) => {
-              const isImmune = suit === enemyImmuneSuit;
-              return (
-                <div key={suit} className={`flex gap-1 text-white/60 ${isImmune ? "line-through opacity-30" : ""}`}>
-                  <span>{suit}</span>
-                  <span className="text-xs leading-tight">{lang === "de" ? desc.split(":")[0] : SUIT_POWERS_EN[suit].split(":")[0]}</span>
-                  {isImmune && <span className="text-red-400">🛡</span>}
-                </div>
-              );
-            })}
+            <ActionBar />
           </div>
+          <GameLog className="hidden md:block w-44 shrink-0" />
         </div>
-
-        {/* Center: Players */}
-        <div className="flex-1 flex flex-col gap-2 overflow-hidden min-w-0">
-          {/* Players hands */}
-          <div className="flex-1 overflow-y-auto space-y-2">
-            {game.players.map((player, pi) => {
-              const isActive = pi === game.currentPlayerIndex;
-              return (
-                <div key={pi} className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isActive ? "0 0 24px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.2)" : "none" }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? "bg-white/90 text-gray-900" : "bg-white/15 text-white"}`}>
-                        {pi + 1}
-                      </span>
-                      <span className={`font-bold text-sm ${isActive ? "text-white" : "text-white/50"}`}>
-                        {player.name} {isActive ? `(${t(lang, "am Zug", "active")})` : ""}
-                      </span>
-                    </div>
-                    <span className="text-white/40 text-xs">{player.hand.length} {t(lang, "Karten", "cards")}</span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {player.hand.map((card) => (
-                      <PlayingCard
-                        key={card.id}
-                        card={card}
-                        selected={selectedCards.includes(card.id)}
-                        onClick={() => {
-                          if (phase === "discard" && isActive) {
-                            discardCardForDamage(card.id);
-                          } else if (phase === "play" && isActive) {
-                            toggleCardSelection(card.id);
-                          }
-                        }}
-                        disabled={!isActive || (phase !== "play" && phase !== "discard")}
-                        small={!isActive}
-                      />
-                    ))}
-                    {player.hand.length === 0 && (
-                      <span className="text-white/30 text-sm italic">{t(lang, "Keine Karten", "No cards")}</span>
-                    )}
-                  </div>
+      ) : (
+        <div className="flex-1 flex flex-col gap-2 p-2 md:gap-3 md:p-3 overflow-hidden relative z-10">
+          <div className="flex gap-2 md:gap-3">
+            <div className="w-36 md:w-48 shrink-0">
+              <EnemyCard enemy={{ ...game.currentEnemy, immuneSuit: enemyImmuneSuit }} lang={lang} />
+            </div>
+            <div className="flex-1 flex flex-col gap-2">
+              <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <p className="text-white/40 text-xs mb-1">{t(lang, "Nächste Feinde:", "Next enemies:")}</p>
+                <div className="flex flex-wrap gap-1">
+                  {game.enemyDeck.slice(0, 8).map((e) => (
+                    <span key={e.id} className={("text-sm ") + (e.suit === "♥" || e.suit === "♦" ? "text-red-400" : "text-gray-300")}>{e.rank}{e.suit}</span>
+                  ))}
+                  {game.enemyDeck.length > 8 && <span className="text-white/30 text-xs">+{game.enemyDeck.length - 8}</span>}
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Action bar */}
-          <div className="p-2 md:p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.15)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)" }}>
-            <div className="flex items-center gap-2 flex-wrap">
-              {phase === "jester" && (
-                <div className="flex-1 px-3 py-2 rounded-xl" style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)", backdropFilter: "blur(12px)" }}>
-                  <p className="text-purple-200 font-bold text-sm">🃏 {t(lang, "Jester! Wähle nächsten Spieler:", "Jester! Choose next player:")}</p>
-                  <div className="flex gap-2 mt-1">
-                    {game.players.map((_, pi) => (
-                      <button key={pi} onClick={() => chooseNextPlayer(pi)} className={`px-3 py-1 text-white/90 text-sm font-bold rounded-lg ${glass.btnPurple}`}>
-                        {t(lang, `Spieler ${pi + 1}`, `Player ${pi + 1}`)}
-                      </button>
+              </div>
+              {game.tableCards.length > 0 && (
+                <div className="p-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <p className="text-white/40 text-xs mb-1">{t(lang, "Tischkarten:", "Table cards:")}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {game.tableCards.map((c) => (
+                      <span key={c.id} className={("text-sm ") + (c.suit === "♥" || c.suit === "♦" ? "text-red-400" : "text-gray-300")}>{c.rank}{c.suit}</span>
                     ))}
                   </div>
                 </div>
               )}
-              {phase === "discard" && (
-                <div className="flex-1 px-3 py-2 rounded-xl" style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.35)", backdropFilter: "blur(12px)" }}>
-                  <p className="text-red-300 font-bold text-sm">⚠️ {t(lang, "Schaden abdecken!", "Cover damage!")}</p>
-                  <p className="text-white/70 text-xs">
-                    {t(lang, `Noch ${Math.ceil(discardNeeded)} Schaden zu decken – Karte anklicken zum Abwerfen`, `Still ${Math.ceil(discardNeeded)} damage to cover – click a card to discard`)}
-                  </p>
-                </div>
-              )}
-              {phase === "play" && selectedCards.length > 0 && (
-                <div className="text-sm text-white/70">
-                  {t(lang, `${selectedCards.length} Karte(n) gewählt`, `${selectedCards.length} card(s) selected`)}
-                  {" · "}
-                  <span className="text-white font-bold">⚔️ {attackValue}</span>
-                  {" ("}<span className="text-orange-400">{t(lang, `Gesamt: ${totalDamageDisplay}`, `Total: ${totalDamageDisplay}`)}</span>{")"}
-                  {totalDamageDisplay >= enemyRemainingHp && (
-                    <span className="ml-2 text-emerald-300 text-xs font-bold">✓ {t(lang, "Reicht zum Besiegen!", "Enough to defeat!")}</span>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-2 ml-auto">
-                {phase === "play" && selectedCards.length > 0 && (
-                  <button onClick={() => setSelectedCards([])} className={`px-3 py-2 text-white/80 text-sm ${glass.btn}`}>
-                    {t(lang, "Abwählen", "Deselect")}
-                  </button>
-                )}
-                {numPlayers === 1 && soloJestersAvail > 0 && phase === "play" && (
-                  <button onClick={() => soloFlipJester("step1")} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}>
-                    🃏 {t(lang, `Jester umdrehen (${soloJestersAvail}x)`, `Flip Jester (${soloJestersAvail}x)`)}
-                  </button>
-                )}
-                {numPlayers === 1 && soloJestersAvail > 0 && phase === "discard" && (
-                  <button onClick={() => soloFlipJester("step4")} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}>
-                    🃏 {t(lang, `Jester (Schaden überspringen, ${soloJestersAvail}x)`, `Flip Jester (skip damage, ${soloJestersAvail}x)`)}
-                  </button>
-                )}
-                {phase === "play" && (
-                  <>
-                    <button
-                      onClick={yieldTurn}
-                      className={`px-4 py-2 font-bold text-sm ${glass.btn}`}
-                    >
-                      {t(lang, "Passen", "Yield")}
-                    </button>
-                    <button
-                      onClick={playCards}
-                      disabled={selectedCards.length === 0}
-                      className={`px-6 py-2 font-bold text-sm rounded-xl transition-all ${selectedCards.length > 0 ? glass.btnPrimary : "opacity-30 cursor-not-allowed bg-white/10 text-white/30 border border-white/10 rounded-xl"}`}
-                    >
-                      ⚔️ {t(lang, "Spielen", "Play")}
-                    </button>
-                  </>
-                )}
-                {phase === "discard" && (
-                  <span className="text-red-300 text-sm font-bold animate-pulse">
-                    👆 {t(lang, "Karte anklicken zum Abwerfen", "Click a card to discard")}
-                  </span>
-                )}
-              </div>
+              <SuitPowers />
             </div>
           </div>
-        </div>
-
-        {/* Right: Log */}
-        <div className="hidden md:block w-44 shrink-0 p-3 overflow-y-auto rounded-2xl" style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.1)" }}>
-          <p className="text-white/60 font-bold text-xs mb-2 tracking-wider">{t(lang, "Spiellog", "Game Log")}</p>
-          <div className="space-y-1">
-            {log.map((entry, i) => (
-              <p key={i} className={`text-xs leading-tight ${i === 0 ? "text-white/90" : "text-white/35"}`}>
-                {entry}
-              </p>
-            ))}
+          <ActionBar />
+          <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-2">
+            {game.players.map((player, pi) => <PlayerHand key={pi} player={player} pi={pi} small={false} />)}
           </div>
+          <GameLog className="max-h-28" />
         </div>
-      </div>
+      )}
     </div>
   );
 }
