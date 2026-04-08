@@ -1,4 +1,4 @@
-// v3.9
+// v5.1 – Schritte 11,12,14,15,17,18
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -42,6 +42,7 @@ const CARD_THEMES = {
   fantasy: { name_de: "Fantasy", name_en: "Fantasy", bg: "linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)", accent: "#a78bfa" },
   classic: { name_de: "Klassisch", name_en: "Classic", bg: "linear-gradient(135deg,#1a2a1a 0%,#2d4a2d 50%,#1a2a1a 100%)", accent: "#4ade80" },
   dark:    { name_de: "Dunkel",    name_en: "Dark",    bg: "linear-gradient(135deg,#0a0a0a 0%,#1a0a0a 50%,#0a0a0a 100%)", accent: "#f87171" },
+  light:   { name_de: "Hell",      name_en: "Light",   bg: "linear-gradient(135deg,#f0f4ff 0%,#dde8ff 50%,#eef2ff 100%)", accent: "#6366f1" },
 };
 
 const GAME_LAYOUTS = {
@@ -49,12 +50,19 @@ const GAME_LAYOUTS = {
   dashboard: { name_de: "Dashboard", name_en: "Dashboard" },
 };
 
-const glass = {
+// Schritt 18 – Dark/Light Mode: glass-Styles abhängig vom Theme
+const makeGlass = (isLight) => isLight ? {
+  btn: "backdrop-blur-md bg-black/10 border border-black/20 hover:bg-black/15 text-gray-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] rounded-xl transition-all duration-200",
+  btnPrimary: "backdrop-blur-md bg-gray-900/90 border border-gray-700/60 hover:bg-gray-900 text-white font-black shadow-[0_4px_20px_rgba(0,0,0,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] rounded-xl transition-all duration-200 hover:scale-105",
+  btnDanger: "backdrop-blur-md bg-red-500/20 border border-red-400/40 hover:bg-red-500/30 text-red-700 shadow-[inset_0_1px_0_rgba(255,100,100,0.2)] rounded-xl transition-all duration-200",
+  btnPurple: "backdrop-blur-md bg-purple-500/20 border border-purple-400/40 hover:bg-purple-500/30 text-purple-800 shadow-[inset_0_1px_0_rgba(180,100,255,0.2)] rounded-xl transition-all duration-200",
+} : {
   btn: "backdrop-blur-md bg-white/15 border border-white/30 hover:bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] rounded-xl transition-all duration-200",
   btnPrimary: "backdrop-blur-md bg-white/90 border border-white/60 hover:bg-white text-gray-900 font-black shadow-[0_4px_20px_rgba(255,255,255,0.3),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-xl transition-all duration-200 hover:scale-105",
   btnDanger: "backdrop-blur-md bg-red-500/30 border border-red-400/40 hover:bg-red-500/50 text-red-200 shadow-[inset_0_1px_0_rgba(255,100,100,0.3)] rounded-xl transition-all duration-200",
   btnPurple: "backdrop-blur-md bg-purple-500/30 border border-purple-400/40 hover:bg-purple-500/50 text-purple-200 shadow-[inset_0_1px_0_rgba(180,100,255,0.3)] rounded-xl transition-all duration-200",
 };
+const glass = makeGlass(false); // fallback, wird im Component überschrieben
 
 function createDeck(numPlayers) {
   const deck = [];
@@ -163,6 +171,37 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
   );
 }
 
+// Schritt 12 – Deck-Visualisierung
+function DeckVisual({ count, color = "#a78bfa", label, isLight }) {
+  const max = 5;
+  const shown = Math.min(count, max);
+  const cards = Array.from({ length: shown });
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: 32, height: 44 }}>
+        {cards.map((_, i) => (
+          <div key={i} className="absolute rounded-lg border"
+            style={{
+              width: 28, height: 40,
+              left: i * 1.5,
+              top: i * -1.5,
+              background: isLight ? `rgba(0,0,0,0.08)` : `rgba(255,255,255,0.10)`,
+              border: `1px solid ${color}55`,
+              boxShadow: i === shown - 1 ? `0 0 6px ${color}66` : undefined,
+            }}
+          />
+        ))}
+        {count === 0 && (
+          <div className="absolute rounded-lg" style={{ width: 28, height: 40, border: `1px dashed ${color}33`, opacity: 0.4 }} />
+        )}
+      </div>
+      <span className="font-black text-xs" style={{ color }}>{count}</span>
+      <span className="text-xs opacity-50" style={{ color, fontSize: 9 }}>{label}</span>
+    </div>
+  );
+}
+
+// Schritt 11 – Animierter Feind-Übergang
 function EnemyCard({ enemy, lang, tableCards = [] }) {
   const isRed = enemy.suit === "♥" || enemy.suit === "♦";
   const hpPct = Math.max(0, Math.min(100, (enemy.currentHp / enemy.hp) * 100));
@@ -171,8 +210,20 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
   const cumulativeDamage = (tableCards || []).reduce((s, c) => s + (c._dealtDamage || 0), 0);
   const damagePct = Math.max(0, Math.min(100, (cumulativeDamage / enemy.hp) * 100));
 
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    setVisible(false);
+    const t = setTimeout(() => setVisible(true), 40);
+    return () => clearTimeout(t);
+  }, [enemy.id]);
+
   return (
-    <div className="rounded-2xl p-3 space-y-2 TURNORDER_ANCHOR" style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
+    <div className="rounded-2xl p-3 space-y-2 TURNORDER_ANCHOR"
+      style={{
+        transition: "opacity 0.4s ease, transform 0.4s ease",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(-12px)",
+      }} style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-3xl drop-shadow">{enemy.rank}</span>
@@ -304,6 +355,10 @@ export default function RegicideApp() {
     },
   };
   const [theme, setTheme] = useState("fantasy");
+  const isLight = theme === "light";
+  const glass = makeGlass(isLight);
+  // Schritt 15 – Log-Animationen: neue Einträge tracken
+  const [newLogIdx, setNewLogIdx] = useState(-1);
   const [gameLayout, setGameLayout] = useState("arena");
   const [screen, setScreen] = useState("menu");
   const [numPlayers, setNumPlayers] = useState(1);
@@ -357,9 +412,13 @@ export default function RegicideApp() {
     setTimeout(() => setEnemyHit(false), 400);
   };
 
-  const addLog = (msg) => setLog((prev) => [msg, ...prev].slice(0, 20));
+  const addLog = (msg) => {
+    setLog((prev) => [msg, ...prev].slice(0, 20));
+    setNewLogIdx(0);
+    setTimeout(() => setNewLogIdx(-1), 600);
+  };
 
-  // v3.9 – Pause Menu
+  // v4.0 – Pause Menu
   const [paused, setPaused] = useState(false);
 
   // v3.8 – Keyboard Shortcuts
@@ -947,8 +1006,6 @@ export default function RegicideApp() {
     const currentPlayer = game.players[game.currentPlayerIndex];
     const selectedCardObjs = selectedCards.map((id) => currentPlayer.hand.find((c) => c.id === id)).filter(Boolean);
     const attackValue = calcAttack(selectedCardObjs, game.currentEnemy);
-    const allEnemiesTotal = 12;
-    const enemiesDefeated = totalStats.enemies;
     const enemiesLeft = game.enemyDeck.length + 1;
 
     return (
@@ -998,7 +1055,8 @@ export default function RegicideApp() {
               </div>
             </div>
           </div>
-          {phase==="play"&&(<div className="flex gap-1.5 flex-wrap px-1 items-center" style={{opacity:0.38}}>{currentPlayer.hand.slice(0,8).map((_,i)=>(<kbd key={i} className="text-white text-xs font-mono bg-white/10 px-1.5 py-0.5 rounded">{i+1}</kbd>))}<span className="text-white/50 text-xs ml-1">· {t(lang,"wählen","select")}</span><span className="text-white/20 mx-2">|</span><kbd className="text-white text-xs font-mono bg-white/10 px-1.5 py-0.5 rounded">↵</kbd><span className="text-white/50 text-xs">{t(lang,"spielen","play")}</span><kbd className="text-white text-xs font-mono bg-white/10 px-1.5 py-0.5 rounded">Y</kbd><span className="text-white/50 text-xs">{t(lang,"passen","yield")}</span><kbd className="text-white text-xs font-mono bg-white/10 px-1.5 py-0.5 rounded">P</kbd><span className="text-white/50 text-xs">{t(lang,"pause","pause")}</span></div>)}
+          {/* Schritt 17 – Mobile: Shortcut-Bar nur auf md+ */}
+          {phase==="play"&&(<div className="hidden md:flex gap-1.5 flex-wrap px-1 items-center" style={{opacity:0.38}}>{currentPlayer.hand.slice(0,8).map((_,i)=>(<kbd key={i} className={`text-xs font-mono px-1.5 py-0.5 rounded ${isLight ? "text-gray-600 bg-black/10" : "text-white bg-white/10"}`}>{i+1}</kbd>))}<span className={`text-xs ml-1 ${isLight ? "text-gray-500" : "text-white/50"}`}>· {t(lang,"wählen","select")}</span><span className={`mx-2 ${isLight ? "text-gray-300" : "text-white/20"}`}>|</span><kbd className={`text-xs font-mono px-1.5 py-0.5 rounded ${isLight ? "text-gray-600 bg-black/10" : "text-white bg-white/10"}`}>↵</kbd><span className={`text-xs ${isLight ? "text-gray-500" : "text-white/50"}`}>{t(lang,"spielen","play")}</span><kbd className={`text-xs font-mono px-1.5 py-0.5 rounded ${isLight ? "text-gray-600 bg-black/10" : "text-white bg-white/10"}`}>Y</kbd><span className={`text-xs ${isLight ? "text-gray-500" : "text-white/50"}`}>{t(lang,"passen","yield")}</span><kbd className={`text-xs font-mono px-1.5 py-0.5 rounded ${isLight ? "text-gray-600 bg-black/10" : "text-white bg-white/10"}`}>P</kbd><span className={`text-xs ${isLight ? "text-gray-500" : "text-white/50"}`}>{t(lang,"pause","pause")}</span></div>)}
           <div className="space-y-2">
             {game.players.map((player,pi)=>{
               const isActive=pi===game.currentPlayerIndex;
@@ -1027,19 +1085,25 @@ export default function RegicideApp() {
               );
             })}
           </div>
-          <div className="rounded-2xl p-3 max-h-32 overflow-y-auto" style={{background:"rgba(0,0,0,0.25)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)"}}>
-            <p className="text-white/30 text-xs mb-1 font-bold tracking-widest uppercase">{t(lang,"Log","Log")}</p>
+          {/* Schritt 15 – Animierter Log */}
+          <div className="rounded-2xl p-3 max-h-32 overflow-y-auto" style={{background: isLight ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.25)",backdropFilter:"blur(20px)",border: isLight ? "1px solid rgba(0,0,0,0.10)" : "1px solid rgba(255,255,255,0.08)"}}>
+            <p className={`text-xs mb-1 font-bold tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/30"}`}>{t(lang,"Log","Log")}</p>
             {log.map((entry,i)=>{
               const isDefeat=entry.includes("besiegt")||entry.includes("defeated");
               const isAttack=entry.includes("⚔")||entry.includes("👿");
               const isHeal=entry.includes("♥");
               const isDraw=entry.includes("♦");
               const isDiscard=entry.includes("🗑");
-              const color=isDefeat?"text-yellow-300":isAttack?"text-red-300":isHeal?"text-emerald-300":isDraw?"text-blue-300":isDiscard?"text-orange-300":"text-white/60";
-              return <p key={i} className={`text-xs leading-tight ${color} ${i===0?"font-bold":"opacity-70"}`}>{entry}</p>;
+              const color=isLight
+                ? (isDefeat?"text-yellow-600":isAttack?"text-red-600":isHeal?"text-emerald-600":isDraw?"text-blue-600":isDiscard?"text-orange-600":"text-gray-500")
+                : (isDefeat?"text-yellow-300":isAttack?"text-red-300":isHeal?"text-emerald-300":isDraw?"text-blue-300":isDiscard?"text-orange-300":"text-white/60");
+              const isNew = i === 0 && newLogIdx === 0;
+              return <p key={entry+i} className={`text-xs leading-tight ${color} ${i===0?"font-bold":"opacity-70"}`}
+                style={{ transition: "opacity 0.3s, transform 0.3s", opacity: isNew ? 1 : undefined, animation: isNew ? "logSlideIn 0.35s ease" : undefined }}>{entry}</p>;
             })}
           </div>
-          <div className="text-center pb-2"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.9</span></div>
+          <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
+          <div className="text-center pb-2"><span className={`font-mono px-2 py-0.5 rounded-lg font-black text-xs ${isLight ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}>v5.0</span></div>
         </div>
       </div>
     );
@@ -1096,7 +1160,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v4.0</span>
           </div>
         </div>
       </div>
@@ -1193,7 +1257,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v4.0</span>
           </div>
         </div>
       </div>
@@ -1219,7 +1283,7 @@ export default function RegicideApp() {
             <button onClick={() => setLang("en")} className={`px-4 py-2 rounded-xl font-bold transition-all text-sm ${lang === "en" ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🇬🇧 English</button>
           </div>
           <div>
-            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Kartenstil", "Card Style")}</p>
+            <p className={`text-xs mb-2 text-center tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/50"}`}>{t(lang, "Kartenstil", "Card Style")}</p>
             <div className="flex gap-2 justify-center flex-wrap">
               {Object.entries(CARD_THEMES).map(([key, th]) => (
                 <button key={key} onClick={() => setTheme(key)} className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${theme === key ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>
@@ -1229,7 +1293,7 @@ export default function RegicideApp() {
             </div>
           </div>
           <div>
-            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Layout", "Layout")}</p>
+            <p className={`text-xs mb-2 text-center tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/50"}`}>{t(lang, "Layout", "Layout")}</p>
             <div className="flex gap-2 justify-center flex-wrap">
               {Object.entries(GAME_LAYOUTS).map(([key, lo]) => (
                 <button key={key} onClick={() => setGameLayout(key)} className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${gameLayout === key ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>
@@ -1239,16 +1303,24 @@ export default function RegicideApp() {
             </div>
           </div>
           <div>
-            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Anzahl Spieler", "Number of Players")}</p>
+            {/* Schritt 18 – Dark/Light Mode Toggle im Menü */}
+            <p className={`text-xs mb-2 text-center tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/50"}`}>{t(lang, "Modus", "Mode")}</p>
+            <div className="flex gap-2 justify-center mb-4">
+              <button onClick={() => setTheme(t => t === "light" ? "fantasy" : "light")}
+                className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${isLight ? "bg-gray-900 text-white shadow-lg" : glass.btn}`}>
+                {isLight ? "☀️ Hell" : "🌙 Dark"}
+              </button>
+            </div>
+            <p className={`text-xs mb-2 text-center tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/50"}`}>{t(lang, "Anzahl Spieler", "Number of Players")}</p>
             <div className="flex gap-2 justify-center">
               {[1, 2, 3, 4].map((n) => (
                 <button key={n} onClick={() => setNumPlayers(n)} className={`w-12 h-12 rounded-xl font-black text-lg transition-all ${numPlayers === n ? "bg-white/90 text-gray-900 scale-110 shadow-lg" : glass.btn}`}>{n}</button>
               ))}
             </div>
-            <p className="text-white/40 text-xs text-center mt-1">{t(lang, `Handgröße: ${getHandSize(numPlayers)} Karten`, `Hand size: ${getHandSize(numPlayers)} cards`)}</p>
+            <p className={`text-xs text-center mt-1 ${isLight ? "text-gray-400" : "text-white/40"}`}>{t(lang, `Handgröße: ${getHandSize(numPlayers)} Karten`, `Hand size: ${getHandSize(numPlayers)} cards`)}</p>
           </div>
           <div>
-            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Sound", "Sound")}</p>
+            <p className={`text-xs mb-2 text-center tracking-widest uppercase ${isLight ? "text-gray-400" : "text-white/50"}`}>{t(lang, "Sound", "Sound")}</p>
             <div className="flex gap-2 justify-center">
               <button onClick={() => setSoundEnabled(false)} className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${!soundEnabled ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🔇 {t(lang, "Aus", "Off")}</button>
               <button onClick={() => setSoundEnabled(true)} className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${soundEnabled ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🔊 {t(lang, "An", "On")}</button>
@@ -1270,7 +1342,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.9</span>
+            <span className={`font-mono px-2 py-0.5 rounded-lg font-black text-xs ${isLight ? "bg-gray-900 text-white" : "bg-white text-gray-900"}`}>v5.0</span>
           </div>
       </div>
     );
@@ -1361,7 +1433,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.0</span>
           </div>
         </div>
       </div>
@@ -1376,6 +1448,57 @@ ${rankLabel}`;
   const prevDamageDisplay = game.tableCards.reduce((s, c) => s + (c._dealtDamage || 0), 0);
   const totalDamageDisplay = prevDamageDisplay + attackValue;
   const enemyRemainingHp = game.currentEnemy.currentHp;
+
+  // Schritt 14 – Combo-Vorschau verbessern (Farb-Kräfte anzeigen)
+  const ComboPreview = () => {
+    if (phase !== "play" || selectedCards.length < 1) return null;
+    const cards = selectedCardObjs;
+    if (cards.length === 0) return null;
+    const isValid = (() => {
+      if (cards.some(c => c.type === "jester")) return cards.length === 1;
+      const animals = cards.filter(c => c.rank === "A");
+      if (animals.length > 0) return cards.length === 2;
+      const ranks = [...new Set(cards.map(c => c.rank))];
+      if (ranks.length > 1) return false;
+      return cards.reduce((s, c) => s + getCardValue(c), 0) <= 10;
+    })();
+    const base = calcBaseAttack(cards);
+    const atk = calcAttack(cards, game.currentEnemy);
+    const suits = [...new Set(cards.filter(c=>c.type!=="jester").map(c=>c.suit))];
+    const prevDmg = game.tableCards.reduce((s,c)=>s+(c._dealtDamage||0),0);
+    const totalAfter = prevDmg + atk;
+    const willKill = totalAfter >= game.currentEnemy.currentHp;
+    const enemy = game.currentEnemy;
+    const powers = suits.map(suit => {
+      const immune = enemy.suit === suit && !enemy.jesterCancelled;
+      if (suit === "♥") return { suit, label: t(lang,`♥ Heilt ${base} Karten`,`♥ Heal ${base} cards`), color:"#34d399", blocked: immune };
+      if (suit === "♦") return { suit, label: t(lang,`♦ Zieht ${base} Karten`,`♦ Draw ${base} cards`), color:"#60a5fa", blocked: immune };
+      if (suit === "♣") return { suit, label: t(lang,`♣ Verdoppelt → ${atk}`,`♣ Double → ${atk}`), color:"#c084fc", blocked: immune };
+      if (suit === "♠") return { suit, label: t(lang,`♠ Schild -${base}`,`♠ Shield -${base}`), color:"#a78bfa", blocked: immune };
+      return null;
+    }).filter(Boolean);
+    return (
+      <div className={`px-3 py-2 rounded-xl text-xs font-bold flex flex-col gap-1.5 ${isLight ? "bg-black/5 border border-black/10" : "bg-white/5 border border-white/10"}`}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={isValid ? "text-emerald-400" : "text-red-400"}>{isValid ? "✅" : "❌"}</span>
+          <span className={isLight ? "text-gray-700" : "text-white/80"}>{cards.length} {t(lang,"Karte(n)","card(s)")} · <span className="font-black">⚔️ {atk}</span></span>
+          {cards.length > 1 && <span className={isLight ? "text-gray-400" : "text-white/40"}>({t(lang,`Basis: ${base}`,`Base: ${base}`)})</span>}
+          {willKill && <span className="text-emerald-300 font-black animate-pulse">💀 {t(lang,"Tötet!","Kills!")}</span>}
+          {!willKill && <span className={isLight ? "text-gray-400" : "text-white/40"}>{t(lang,`Gesamt: ${totalAfter}/${game.currentEnemy.currentHp}`,`Total: ${totalAfter}/${game.currentEnemy.currentHp}`)}</span>}
+        </div>
+        {powers.length > 0 && (
+          <div className="flex gap-2 flex-wrap">
+            {powers.map((p,i) => (
+              <span key={i} className={`px-2 py-0.5 rounded-lg text-xs ${p.blocked ? "line-through opacity-40" : ""}`}
+                style={{ background: p.color+"22", color: p.color, border: `1px solid ${p.color}44` }}>
+                {p.label}{p.blocked ? " 🛡" : ""}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const ActionBar = () => (
     <div className="p-2 md:p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.15)" }}>
@@ -1471,6 +1594,7 @@ ${rankLabel}`;
     const isDiscardTarget = phase === "discard" && isActive;
     const suggestedIds = isDiscardTarget ? getAutoDiscardSuggestion(player.hand, discardNeeded) : [];
     return (
+      // Schritt 17 – Mobile: overflow-x-auto für Kartenhand
       <div className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isDiscardTarget ? "rgba(239,68,68,0.18)" : isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isDiscardTarget ? "2px solid rgba(239,68,68,0.6)" : isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isDiscardTarget ? "0 0 24px rgba(239,68,68,0.3)" : undefined }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -1480,7 +1604,8 @@ ${rankLabel}`;
           <span className="text-white/40 text-xs">{player.hand.length} {t(lang, "Karten", "cards")}</span>
           {isDiscardTarget && <span className="text-red-300 text-xs font-black animate-pulse">⚠️ {t(lang, "Abwerfen!", "Discard!")}</span>}
         </div>
-        <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
+        {/* Schritt 17 – Mobile: flex-nowrap + horizontales Scrollen für aktive Hand */}
+        <div className={`flex gap-1.5 pb-1 ${isActive ? "overflow-x-auto flex-nowrap" : "flex-wrap"}`}>
           {player.hand.map((card, cardIdx) => (
             <PlayingCard
               key={card.id}
@@ -1506,6 +1631,9 @@ ${rankLabel}`;
   const themeConfig = CARD_THEMES[theme] || CARD_THEMES.fantasy;
   const bgStyle = { background: themeConfig.bg };
   const accentGlow = themeConfig.accent;
+  // Schritt 18 – Light Mode: Header-Textfarben
+  const headerText = isLight ? "text-gray-700" : "text-white/60";
+  const headerTextStrong = isLight ? "text-gray-900" : "text-white";
 
   return (
     <div className="min-h-screen p-2 md:p-4 relative overflow-hidden" style={bgStyle}>
@@ -1521,17 +1649,23 @@ ${rankLabel}`;
 
       <div className="max-w-5xl mx-auto space-y-3">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2"><button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>← {t(lang, "Menü", "Menu")}</button><button onClick={() => setPaused(true)} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>⏸ {t(lang, "Pause", "Pause")}</button></div>
-          <div className="text-white/60 text-xs text-center">
-            <span className="text-white font-bold">{t(lang, "Feinde übrig", "Enemies left")}: </span>
-            <span className="font-bold text-white">{game.enemyDeck.length + 1}</span>
-            <span className="mx-2">·</span>
-            <span>🃏 {t(lang, "Stapel", "Deck")}: <span className="text-white font-bold">{game.drawPile.length}</span></span>
-            <span className="mx-2">·</span>
-            <span>🗑 {t(lang, "Ablage", "Discard")}: <span className="text-white font-bold">{game.discardPile.length}</span></span>
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex gap-1.5"><button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-2.5 py-1.5 text-sm font-bold ${glass.btn}`}>← {t(lang, "Menü", "Menu")}</button><button onClick={() => setPaused(true)} className={`px-2.5 py-1.5 text-sm font-bold ${glass.btn}`}>⏸</button></div>
+          {/* Schritt 12 – Deck-Visualisierung */}
+          <div className="flex items-end gap-3">
+            <DeckVisual count={game.drawPile.length} color={isLight ? "#6366f1" : "#a78bfa"} label={t(lang,"Stapel","Deck")} isLight={isLight} />
+            <DeckVisual count={game.discardPile.length} color={isLight ? "#f97316" : "#fb923c"} label={t(lang,"Ablage","Disc.")} isLight={isLight} />
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-2xl">👑</span>
+              <span className="font-black text-xs" style={{ color: isLight ? "#6366f1" : "#a78bfa" }}>{game.enemyDeck.length + 1}</span>
+              <span className="opacity-50" style={{ color: isLight ? "#6366f1" : "#a78bfa", fontSize: 9 }}>{t(lang,"Feinde","Foes")}</span>
+            </div>
           </div>
-          <div className="text-white/40 text-xs">{t(lang, "Phase", "Phase")}: <span className="text-white/70 font-bold">{phase}</span></div>
+          <div className={`text-xs ${headerText} text-center`}>
+            <span className={`font-bold ${headerTextStrong}`}>{t(lang, "Phase", "Phase")}: </span>
+            <span className={`font-bold ${headerTextStrong}`}>{phase}</span>
+          </div>
+          <div className={`text-xs ${isLight ? "text-gray-400" : "text-white/40"}`}>{t(lang, "Feinde", "Foes")}: <span className={`font-bold ${isLight ? "text-gray-700" : "text-white/70"}`}>{game.enemyDeck.length+1}</span></div>
         </div>
 
         {/* Enemy */}
@@ -1548,24 +1682,8 @@ ${rankLabel}`;
         {/* Action Bar */}
         <ActionBar />
 
-        {/* Combo-Vorschau */}
-        {phase === "play" && selectedCards.length > 1 && (() => {
-          const isValid = (() => {
-            const cards = selectedCardObjs;
-            if (cards.some(c => c.type === "jester")) return false;
-            const animals = cards.filter(c => c.rank === "A");
-            if (animals.length > 0) return cards.length === 2;
-            const ranks = [...new Set(cards.map(c => c.rank))];
-            if (ranks.length > 1) return false;
-            return cards.reduce((s, c) => s + getCardValue(c), 0) <= 10;
-          })();
-          return (
-            <div className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${isValid ? "text-emerald-300" : "text-red-300"}`}
-              style={{ background: isValid ? "rgba(52,211,153,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${isValid ? "rgba(52,211,153,0.3)" : "rgba(239,68,68,0.3)"}` }}>
-              {isValid ? "✅" : "❌"} {isValid ? t(lang, `Gültige Kombo – Angriff: ${attackValue}`, `Valid combo – attack: ${attackValue}`) : t(lang, "Ungültige Kombination!", "Invalid combination!")}
-            </div>
-          );
-        })()}
+        {/* Schritt 14 – Combo-Vorschau (verbessert) */}
+        <ComboPreview />
 
         {/* Players */}
         <TurnOrder />
