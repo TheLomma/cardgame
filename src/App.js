@@ -1,5 +1,5 @@
-// v2.0
-import { useState } from "react";
+// v3.1
+import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
 const SUIT_COLORS = { "♥": "#e53e3e", "♦": "#e53e3e", "♣": "#1a202c", "♠": "#1a202c" };
@@ -39,9 +39,9 @@ const SUIT_POWERS_EN = {
 };
 
 const CARD_THEMES = {
-  fantasy: { name_de: "Fantasy", name_en: "Fantasy" },
-  classic: { name_de: "Klassisch", name_en: "Classic" },
-  dark: { name_de: "Dunkel", name_en: "Dark" },
+  fantasy: { name_de: "Fantasy", name_en: "Fantasy", bg: "linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)", accent: "#a78bfa" },
+  classic: { name_de: "Klassisch", name_en: "Classic", bg: "linear-gradient(135deg,#1a2a1a 0%,#2d4a2d 50%,#1a2a1a 100%)", accent: "#4ade80" },
+  dark:    { name_de: "Dunkel",    name_en: "Dark",    bg: "linear-gradient(135deg,#0a0a0a 0%,#1a0a0a 50%,#0a0a0a 100%)", accent: "#f87171" },
 };
 
 const GAME_LAYOUTS = {
@@ -99,7 +99,12 @@ function getHandSize(numPlayers) {
 const t = (lang, de, en) => (lang === "de" ? de : en);
 
 function PlayingCard({ card, selected, onClick, disabled, small = false }) {
-  const isRed = card.suit === "♥" || card.suit === "♦";
+  const [hovered, setHovered] = useState(false);
+  const isRed2 = card.suit === "\u2665" || card.suit === "\u2666";
+  const suitPower = card.type !== "jester" ? (isRed2 ? (card.suit === "\u2665" ? SUIT_POWERS_DE["\u2665"] : SUIT_POWERS_DE["\u2666"]) : (card.suit === "\u2663" ? SUIT_POWERS_DE["\u2663"] : SUIT_POWERS_DE["\u2660"])) : null;
+  const tooltipContent = card.type === "jester" ? "Jester: Immunität aufheben / Hand tauschen" : `${card.rank}${card.suit} | Wert: ${card.value} | Angriff: ${card.attack}${suitPower ? " | " + suitPower : ""}`;
+  const ignored_isRed = isRed2; // suppress lint
+  const isRed = card.suit === "\u2665" || card.suit === "\u2666";
   const isJester = card.type === "jester";
   const color = isJester ? "text-yellow-300" : isRed ? "text-red-300" : "text-white";
   const borderColor = isRed ? "rgba(252,165,165,0.5)" : "rgba(255,255,255,0.25)";
@@ -124,6 +129,13 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
   }
 
   return (
+    <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      {hovered && !small && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-48 p-2 rounded-xl text-xs text-white/90 pointer-events-none"
+          style={{ background: "rgba(10,10,30,0.95)", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(20px)" }}>
+          {tooltipContent}
+        </div>
+      )}
     <div
       onClick={!disabled ? onClick : undefined}
       className={`relative cursor-pointer select-none transition-all duration-200 rounded-2xl w-20 h-28 flex flex-col p-1.5 ${
@@ -147,10 +159,11 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
         </div>
       )}
     </div>
+    </div>
   );
 }
 
-function EnemyCard({ enemy, lang, tableCards }) {
+function EnemyCard({ enemy, lang, tableCards = [] }) {
   const isRed = enemy.suit === "♥" || enemy.suit === "♦";
   const hpPct = Math.max(0, Math.min(100, (enemy.currentHp / enemy.hp) * 100));
   const hpColor = hpPct > 60 ? "#4ade80" : hpPct > 30 ? "#facc15" : "#f87171";
@@ -159,7 +172,7 @@ function EnemyCard({ enemy, lang, tableCards }) {
   const damagePct = Math.max(0, Math.min(100, (cumulativeDamage / enemy.hp) * 100));
 
   return (
-    <div className="rounded-2xl p-3 space-y-2" style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
+    <div className="rounded-2xl p-3 space-y-2 TURNORDER_ANCHOR" style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-3xl drop-shadow">{enemy.rank}</span>
@@ -189,6 +202,14 @@ function EnemyCard({ enemy, lang, tableCards }) {
           <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${hpPct}%`, background: hpColor, boxShadow: `0 0 8px ${hpColor}` }} />
         </div>
       </div>
+      {tableCards.length > 0 && (
+        <div className="flex flex-wrap gap-1 items-center">
+          <span className="text-white/30 text-xs">{lang === "de" ? "Tisch:" : "Table:"}</span>
+          {tableCards.map((c, i) => (
+            <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-bold ${c.suit === "\u2665" || c.suit === "\u2666" ? "text-red-300 bg-red-900/30" : "text-white/80 bg-white/10"}`}>{c.rank}{c.suit}</span>
+          ))}
+        </div>
+      )}
       {cumulativeDamage > 0 && (
         <div>
           <div className="flex justify-between text-xs text-orange-300/70 mb-1">
@@ -223,7 +244,7 @@ export default function RegicideApp() {
   const [selectedCards, setSelectedCards] = useState([]);
   const [log, setLog] = useState([]);
   const [animMsg, setAnimMsg] = useState("");
-  const [showRules, setShowRules] = useState(false);
+  const showRules = false; const setShowRules = () => {};
   const [phase, setPhase] = useState("play");
   const [discardNeeded, setDiscardNeeded] = useState(0);
   const [discardedSoFar, setDiscardedSoFar] = useState(0);
@@ -231,9 +252,9 @@ export default function RegicideApp() {
 
   const addLog = (msg) => setLog((prev) => [msg, ...prev].slice(0, 20));
 
-  const showAnim = (msg) => {
+  const showAnim = (msg, duration = 2000) => {
     setAnimMsg(msg);
-    setTimeout(() => setAnimMsg(""), 2000);
+    setTimeout(() => setAnimMsg(""), duration);
   };
 
   const initGame = () => {
@@ -438,8 +459,17 @@ export default function RegicideApp() {
       while (currP.hand.length < maxHand && drawPile.length > 0) currP.hand.push(drawPile.shift());
       newPlayers[game.currentPlayerIndex] = currP;
       const nextAfterDiscard = game._nextPlayerAfterDiscard ?? (game.currentPlayerIndex + 1) % numPlayers;
+      let drawPile2 = [...game.drawPile];
+      if (drawPile2.length === 0 && game.discardPile.length > 0) {
+        drawPile2 = shuffle([...newDiscard]);
+        newDiscard = [];
+        addLog(t(lang, "🔄 Nachziehstapel leer – Ablage gemischt!", "🔄 Draw pile empty – discard reshuffled!"));
+      }
+      while (newPlayers[game.currentPlayerIndex].hand.length < getHandSize(numPlayers) && drawPile2.length > 0) {
+        newPlayers[game.currentPlayerIndex] = { ...newPlayers[game.currentPlayerIndex], hand: [...newPlayers[game.currentPlayerIndex].hand, drawPile2.shift()] };
+      }
       addLog(t(lang, "✅ Schaden bezahlt! Nächster Spieler.", "✅ Damage paid! Next player."));
-      const stateAfterDiscard = { ...game, players: newPlayers, discardPile: newDiscard, drawPile, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
+      const stateAfterDiscard = { ...game, players: newPlayers, discardPile: newDiscard, drawPile: drawPile2, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
       if (!checkCanActAndTriggerLose(stateAfterDiscard, nextAfterDiscard, lastYielded)) {
         setGame(stateAfterDiscard);
       }
@@ -496,7 +526,7 @@ export default function RegicideApp() {
     enemy = applySpades(g, cards, enemy, baseAttack);
     let tableCards = [...g.tableCards, ...taggedCards];
     if (newHp <= 0) {
-      showAnim(t(lang, `${enemy.rank}${enemy.suit} besiegt! 🎉`, `${enemy.rank}${enemy.suit} defeated! 🎉`));
+      showAnim(t(lang, `🎉 ${enemy.rank}${enemy.suit} BESIEGT! 👑✨`, `🎉 ${enemy.rank}${enemy.suit} DEFEATED! 👑✨`), 2500);
       addLog(t(lang, `Feind besiegt: ${enemy.rank}${enemy.suit}`, `Enemy defeated: ${enemy.rank}${enemy.suit}`));
       let newDiscard = [...g.discardPile];
       let newDraw = [...g.drawPile];
@@ -562,6 +592,8 @@ export default function RegicideApp() {
     if (!game || phase !== "play") return;
     const otherPlayers = game.players.map((_, i) => i).filter((i) => i !== game.currentPlayerIndex);
     const allOthersYielded = otherPlayers.length > 0 && otherPlayers.every((i) => lastYielded.includes(i));
+    // Yield-Loop-Schutz: verhindere Endlosschleife wenn alle gepasst haben
+    if (numPlayers === 1) { addLog(t(lang, "Solo: kein Passen möglich!", "Solo: cannot yield!")); return; }
     if (allOthersYielded && numPlayers > 1) {
       addLog(t(lang, "Passen nicht möglich – alle anderen haben bereits gepasst!", "Cannot yield – all others already yielded!"));
       return;
@@ -654,7 +686,6 @@ export default function RegicideApp() {
             <p className="text-white/40 text-xs text-center mt-1">{t(lang, `Handgröße: ${getHandSize(numPlayers)} Karten`, `Hand size: ${getHandSize(numPlayers)} cards`)}</p>
           </div>
           <button onClick={initGame} className={`w-full py-4 font-black text-xl ${glass.btnPrimary}`}>{t(lang, "Spiel Starten ⚔️", "Start Game ⚔️")}</button>
-          <button onClick={() => setShowRules(!showRules)} className={`w-full py-2 font-bold text-sm ${glass.btn}`}>{t(lang, "📖 Regeln", "📖 Rules")}</button>
           {showRules && (
             <div className="rounded-2xl p-4 text-white/70 text-xs space-y-2 max-h-64 overflow-y-auto" style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <p className="font-bold text-white/90">{t(lang, "Ziel:", "Goal:")}</p>
@@ -666,6 +697,10 @@ export default function RegicideApp() {
             </div>
           )}
         </div>
+
+          <div className="text-center py-3">
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.1</span>
+          </div>
       </div>
     );
   }
@@ -688,6 +723,11 @@ export default function RegicideApp() {
           <div className="flex gap-4 justify-center">
             <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-8 py-3 font-bold ${glass.btn}`}>{t(lang, "Hauptmenü", "Main Menu")}</button>
             <button onClick={initGame} className={`px-8 py-3 font-bold ${glass.btnPrimary}`}>{t(lang, "Nochmal spielen", "Play Again")}</button>
+          </div>
+
+          {/* Footer */}
+          <div className="text-center py-2">
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.1</span>
           </div>
         </div>
       </div>
@@ -735,7 +775,7 @@ export default function RegicideApp() {
           {phase === "play" && selectedCards.length > 0 && (
             <button onClick={() => setSelectedCards([])} className={`px-3 py-2 text-white/80 text-sm ${glass.btn}`}>{t(lang, "Abwählen", "Deselect")}</button>
           )}
-          {numPlayers === 1 && soloJestersAvail > 0 && phase === "play" && (
+          {numPlayers === 1 && soloJestersAvail > 0 && phase === "play" && currentPlayer.hand.length < getHandSize(numPlayers) && (
             <button onClick={() => soloFlipJester("step1")} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}>
               🃏 {t(lang, `Jester (${soloJestersAvail}x)`, `Jester (${soloJestersAvail}x)`)}
             </button>
@@ -765,18 +805,39 @@ export default function RegicideApp() {
     </div>
   );
 
+  const TurnOrder = () => numPlayers <= 1 ? null : (
+    <div className="flex items-center gap-2 flex-wrap px-1">
+      <span className="text-white/30 text-xs tracking-widest uppercase">{t(lang, 'Reihenfolge', 'Order')}:</span>
+      {Array.from({ length: numPlayers }, (_, i) => {
+        const pi = (game.currentPlayerIndex + i) % numPlayers;
+        const p = game.players[pi];
+        const isActive = i === 0;
+        return (
+          <div key={pi} className="flex items-center gap-1">
+            {i > 0 && <span className="text-white/20 text-xs">›</span>}
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-white/90 text-gray-900 shadow scale-105' : 'bg-white/10 text-white/50'}`}>
+              {isActive && <span>▶ </span>}<span>{p.name}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   const PlayerHand = ({ player, pi, small }) => {
     const isActive = pi === game.currentPlayerIndex;
+    const isDiscardTarget = phase === "discard" && isActive;
     return (
-      <div className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)" }}>
+      <div className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isDiscardTarget ? "rgba(239,68,68,0.18)" : isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isDiscardTarget ? "2px solid rgba(239,68,68,0.6)" : isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isDiscardTarget ? "0 0 24px rgba(239,68,68,0.3)" : undefined }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? "bg-white/90 text-gray-900" : "bg-white/15 text-white"}`}>{pi + 1}</span>
             <span className={`font-bold text-sm ${isActive ? "text-white" : "text-white/50"}`}>{player.name} {isActive ? `(${t(lang, "am Zug", "active")})` : ""}</span>
           </div>
           <span className="text-white/40 text-xs">{player.hand.length} {t(lang, "Karten", "cards")}</span>
+          {isDiscardTarget && <span className="text-red-300 text-xs font-black animate-pulse">⚠️ {t(lang, "Abwerfen!", "Discard!")}</span>}
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
           {player.hand.map((card) => (
             <PlayingCard
               key={card.id}
@@ -796,16 +857,20 @@ export default function RegicideApp() {
     );
   };
 
-  const bgStyle = { background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" };
+  // v2.1 – Reihenfolge-Anzeige
+
+  const themeConfig = CARD_THEMES[theme] || CARD_THEMES.fantasy;
+  const bgStyle = { background: themeConfig.bg };
+  const accentGlow = themeConfig.accent;
 
   return (
     <div className="min-h-screen p-2 md:p-4 relative overflow-hidden" style={bgStyle}>
-      <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #7c3aed, transparent 70%)" }} />
-      <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #0ea5e9, transparent 70%)" }} />
+      <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: `radial-gradient(circle, ${accentGlow}, transparent 70%)` }} />
+      <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: `radial-gradient(circle, ${accentGlow}, transparent 70%)` }} />
 
       {animMsg && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl font-black text-xl text-white shadow-2xl animate-bounce"
-          style={{ background: "rgba(30,0,60,0.85)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.2)" }}>
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl font-black text-xl text-white shadow-2xl animate-bounce text-center"
+          style={{ background: animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "rgba(120,80,0,0.95)" : "rgba(30,0,60,0.85)", backdropFilter: "blur(20px)", border: `1px solid ${animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)"}`, boxShadow: animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "0 0 40px rgba(251,191,36,0.4)" : undefined }}>
           {animMsg}
         </div>
       )}
@@ -816,11 +881,11 @@ export default function RegicideApp() {
           <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>← {t(lang, "Menü", "Menu")}</button>
           <div className="text-white/60 text-xs text-center">
             <span className="text-white font-bold">{t(lang, "Feinde übrig", "Enemies left")}: </span>
-            <span>{game.enemyDeck.length + 1}</span>
+            <span className="font-bold text-white">{game.enemyDeck.length + 1}</span>
             <span className="mx-2">·</span>
-            <span>{t(lang, "Nachziehstapel", "Draw")}: {game.drawPile.length}</span>
+            <span>🃏 {t(lang, "Stapel", "Deck")}: <span className="text-white font-bold">{game.drawPile.length}</span></span>
             <span className="mx-2">·</span>
-            <span>{t(lang, "Ablage", "Discard")}: {game.discardPile.length}</span>
+            <span>🗑 {t(lang, "Ablage", "Discard")}: <span className="text-white font-bold">{game.discardPile.length}</span></span>
           </div>
           <div className="text-white/40 text-xs">{t(lang, "Phase", "Phase")}: <span className="text-white/70 font-bold">{phase}</span></div>
         </div>
@@ -831,7 +896,27 @@ export default function RegicideApp() {
         {/* Action Bar */}
         <ActionBar />
 
+        {/* Combo-Vorschau */}
+        {phase === "play" && selectedCards.length > 1 && (() => {
+          const isValid = (() => {
+            const cards = selectedCardObjs;
+            if (cards.some(c => c.type === "jester")) return false;
+            const animals = cards.filter(c => c.rank === "A");
+            if (animals.length > 0) return cards.length === 2;
+            const ranks = [...new Set(cards.map(c => c.rank))];
+            if (ranks.length > 1) return false;
+            return cards.reduce((s, c) => s + getCardValue(c), 0) <= 10;
+          })();
+          return (
+            <div className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 ${isValid ? "text-emerald-300" : "text-red-300"}`}
+              style={{ background: isValid ? "rgba(52,211,153,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${isValid ? "rgba(52,211,153,0.3)" : "rgba(239,68,68,0.3)"}` }}>
+              {isValid ? "✅" : "❌"} {isValid ? t(lang, `Gültige Kombo – Angriff: ${attackValue}`, `Valid combo – attack: ${attackValue}`) : t(lang, "Ungültige Kombination!", "Invalid combination!")}
+            </div>
+          );
+        })()}
+
         {/* Players */}
+        <TurnOrder />
         <div className="space-y-2">
           {game.players.map((player, pi) => (
             <PlayerHand key={pi} player={player} pi={pi} />
@@ -841,9 +926,15 @@ export default function RegicideApp() {
         {/* Log */}
         <div className="rounded-2xl p-3 max-h-32 overflow-y-auto" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <p className="text-white/30 text-xs mb-1 font-bold tracking-widest uppercase">{t(lang, "Log", "Log")}</p>
-          {log.map((entry, i) => (
-            <p key={i} className="text-white/60 text-xs leading-relaxed">{entry}</p>
-          ))}
+          {log.map((entry, i) => {
+            const isAttack = entry.includes("\u2694") || entry.includes("\ud83d\udc7f");
+            const isHeal = entry.includes("♥");
+            const isDraw = entry.includes("♦");
+            const isDefeat = entry.includes("besiegt") || entry.includes("defeated");
+            const isDiscard = entry.includes("🗑");
+            const color = isDefeat ? "text-yellow-300" : isAttack ? "text-red-300" : isHeal ? "text-emerald-300" : isDraw ? "text-blue-300" : isDiscard ? "text-orange-300" : "text-white/60";
+            return <p key={i} className={`text-xs leading-tight ${color} ${i === 0 ? "font-bold" : "opacity-70"}`}>{entry}</p>;
+          })}
         </div>
       </div>
     </div>
