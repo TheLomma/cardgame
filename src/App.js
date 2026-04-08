@@ -1,4 +1,4 @@
-// v3.4
+// v3.7
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -233,6 +233,76 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
 
 export default function RegicideApp() {
   const [lang, setLang] = useState("de");
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const audioCtxRef = useRef(null);
+
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtxRef.current;
+  };
+
+  const playTone = (freq, type = "sine", duration = 0.15, gain = 0.18, delay = 0) => {
+    if (!soundEnabled) return;
+    try {
+      const ctx = getAudioCtx();
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
+      gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
+      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + delay + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + duration);
+    } catch(e) {}
+  };
+
+  const sfx = {
+    attack: () => {
+      playTone(180, "sawtooth", 0.08, 0.22);
+      playTone(120, "square", 0.12, 0.12, 0.06);
+    },
+    bigAttack: () => {
+      playTone(100, "sawtooth", 0.1, 0.28);
+      playTone(70, "square", 0.18, 0.2, 0.07);
+      playTone(140, "sawtooth", 0.08, 0.15, 0.15);
+    },
+    defeat: () => {
+      playTone(440, "sine", 0.12, 0.2);
+      playTone(330, "sine", 0.15, 0.18, 0.1);
+      playTone(220, "sine", 0.25, 0.22, 0.22);
+    },
+    heal: () => {
+      playTone(520, "sine", 0.1, 0.15);
+      playTone(660, "sine", 0.12, 0.15, 0.1);
+      playTone(780, "sine", 0.1, 0.12, 0.2);
+    },
+    draw: () => {
+      playTone(600, "sine", 0.07, 0.12);
+      playTone(750, "sine", 0.07, 0.1, 0.08);
+    },
+    shield: () => {
+      playTone(300, "triangle", 0.1, 0.15);
+      playTone(380, "triangle", 0.12, 0.13, 0.09);
+    },
+    victory: () => {
+      [523, 659, 784, 1047].forEach((f, i) => playTone(f, "sine", 0.18, 0.2, i * 0.13));
+    },
+    gameover: () => {
+      [220, 185, 155, 110].forEach((f, i) => playTone(f, "sawtooth", 0.22, 0.18, i * 0.15));
+    },
+    cardSelect: () => playTone(800, "sine", 0.05, 0.08),
+    jester: () => {
+      [600, 800, 1000, 800, 600].forEach((f, i) => playTone(f, "sine", 0.06, 0.1, i * 0.07));
+    },
+    yield: () => playTone(260, "triangle", 0.1, 0.1),
+    discard: () => playTone(200, "sawtooth", 0.08, 0.12),
+    enemyDefeated: () => {
+      [392, 523, 659, 784].forEach((f, i) => playTone(f, "sine", 0.15, 0.22, i * 0.1));
+    },
+  };
   const [theme, setTheme] = useState("fantasy");
   const [gameLayout, setGameLayout] = useState("arena");
   const [screen, setScreen] = useState("menu");
@@ -244,7 +314,7 @@ export default function RegicideApp() {
   const [selectedCards, setSelectedCards] = useState([]);
   const [log, setLog] = useState([]);
   const [animMsg, setAnimMsg] = useState("");
-  const showRules = false; const setShowRules = () => {};
+  const [showRules, setShowRules] = useState(false);
   const [phase, setPhase] = useState("play");
   const [discardNeeded, setDiscardNeeded] = useState(0);
   const [discardedSoFar, setDiscardedSoFar] = useState(0);
@@ -252,6 +322,23 @@ export default function RegicideApp() {
   const [roundStats, setRoundStats] = useState({ damage: 0, cards: 0, healed: 0 });
   const [lastRoundStats, setLastRoundStats] = useState(null);
   const [totalStats, setTotalStats] = useState({ damage: 0, cards: 0, enemies: 0 });
+
+  // v3.7 – Highscores
+  const [showHighscores, setShowHighscores] = useState(false);
+  const loadHighscores = () => {
+    try { return JSON.parse(localStorage.getItem("regicide_hs") || "[]"); } catch { return []; }
+  };
+  const saveHighscore = (entry) => {
+    try {
+      const list = loadHighscores();
+      list.push(entry);
+      list.sort((a, b) => b.score - a.score);
+      localStorage.setItem("regicide_hs", JSON.stringify(list.slice(0, 10)));
+    } catch {}
+  };
+  const clearHighscores = () => {
+    try { localStorage.removeItem("regicide_hs"); } catch {}
+  };
 
   // v3.4 – floating damage numbers
   const [floatingNums, setFloatingNums] = useState([]);
@@ -323,6 +410,7 @@ export default function RegicideApp() {
   };
 
   const toggleCardSelection = (cardId) => {
+    sfx.cardSelect();
     if (phase !== "play") return;
     const currentHand = game.players[game.currentPlayerIndex].hand;
     const clickedCard = currentHand.find((c) => c.id === cardId);
@@ -383,6 +471,7 @@ export default function RegicideApp() {
     const shuffledDiscard = shuffle([...g.discardPile]);
     const toHeal = shuffledDiscard.slice(0, baseAttack);
     const newDiscard = shuffledDiscard.slice(baseAttack);
+    sfx.heal();
     spawnFloat(`+${toHeal.length} ♥`, "#34d399", "text-3xl");
     addLog(`♥ ${t(lang, `Heilt ${toHeal.length} Karten zurück`, `Healed ${toHeal.length} cards back`)}`);
     return { ...g, discardPile: newDiscard, drawPile: [...g.drawPile, ...toHeal] };
@@ -409,6 +498,7 @@ export default function RegicideApp() {
         newPlayers[pi] = player;
       }
     }
+    if (drawn > 0) sfx.draw();
     if (drawn > 0) spawnFloat(`+${drawn} ♦`, "#60a5fa", "text-3xl");
     addLog(`♦ ${t(lang, `${drawn} Karten gezogen`, `${drawn} cards drawn`)}`);
     return { g: { ...g, drawPile }, players: newPlayers };
@@ -420,6 +510,7 @@ export default function RegicideApp() {
     const enemyImmuneToS = enemy.suit === "♠" && !enemy.jesterCancelled;
     if (enemyImmuneToS) { addLog(t(lang, "♠ Immunität – Schild blockiert", "♠ Immune – shield blocked")); return enemy; }
     const newAttack = Math.max(0, enemy.attack - baseAttack);
+    sfx.shield();
     spawnFloat(`♠ -${baseAttack}`, "#a78bfa", "text-2xl");
     addLog(`♠ ${t(lang, `Schild: Feind-Angriff ${enemy.attack} → ${newAttack}`, `Shield: Enemy attack ${enemy.attack} → ${newAttack}`)}`);
     return { ...enemy, attack: newAttack };
@@ -444,6 +535,7 @@ export default function RegicideApp() {
   };
 
   const playJester = () => {
+    sfx.jester();
     if (!game) return;
     const selectedIds = [...selectedCards];
     let players = game.players.map((p, i) =>
@@ -465,6 +557,7 @@ export default function RegicideApp() {
   };
 
   const discardCardForDamage = (cardId) => {
+    sfx.discard();
     if (phase !== "discard" || !game) return;
     const currentPlayer = game.players[game.currentPlayerIndex];
     const card = currentPlayer.hand.find((c) => c.id === cardId);
@@ -541,6 +634,7 @@ export default function RegicideApp() {
     const taggedCards = cards.map((c, idx) => ({ ...c, _dealtDamage: idx === 0 ? attack : 0 }));
     const newHp = enemy.currentHp - attack;
     setRoundStats(prev => ({ damage: prev.damage + attack, cards: prev.cards + cards.length, healed: prev.healed }));
+    if (attack >= 20) sfx.bigAttack(); else sfx.attack();
     triggerEnemyHit();
     spawnFloat(`-${attack}`, attack >= 20 ? "#fbbf24" : attack >= 10 ? "#f87171" : "#fb923c", attack >= 20 ? "text-5xl" : attack >= 10 ? "text-4xl" : "text-3xl");
     addLog(`⚔️ ${t(lang, `Angriff: ${attack} Schaden → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`, `Attack: ${attack} damage → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`)}`);
@@ -556,6 +650,7 @@ export default function RegicideApp() {
       setLastRoundStats(finishedStats);
       setTotalStats(prev => ({ damage: prev.damage + finishedStats.damage, cards: prev.cards + finishedStats.cards, enemies: prev.enemies + 1 }));
       setRoundStats({ damage: 0, cards: 0, healed: 0 });
+      sfx.enemyDefeated();
       spawnFloat("👑 BESIEGT!", "#fbbf24", "text-4xl");
       showAnim(t(lang, `🎉 ${enemy.rank}${enemy.suit} BESIEGT! 👑✨`, `🎉 ${enemy.rank}${enemy.suit} DEFEATED! 👑✨`), 2500);
       addLog(t(lang, `Feind besiegt: ${enemy.rank}${enemy.suit}`, `Enemy defeated: ${enemy.rank}${enemy.suit}`));
@@ -570,6 +665,19 @@ export default function RegicideApp() {
         addLog(t(lang, "Overkill – Karten auf Ablage.", "Overkill – cards to discard."));
       }
       if (g.enemyDeck.length === 0) {
+        sfx.victory();
+        const finalStats = { ...totalStats, damage: totalStats.damage + (roundStats.damage + attack), cards: totalStats.cards + (roundStats.cards), enemies: totalStats.enemies + 1 };
+        const hsEntry = {
+          date: new Date().toLocaleDateString(lang === "de" ? "de-DE" : "en-GB"),
+          players: numPlayers,
+          won: true,
+          enemies: finalStats.enemies,
+          damage: finalStats.damage,
+          cards: finalStats.cards,
+          jesters: soloJestersUsed,
+          score: finalStats.damage + finalStats.enemies * 50 + (soloJestersUsed === 0 ? 100 : 0),
+        };
+        saveHighscore(hsEntry);
         setGame({ ...g, players, discardPile: newDiscard, drawPile: newDraw, tableCards: [], won: true });
         setScreen("victory");
         return;
@@ -621,6 +729,7 @@ export default function RegicideApp() {
 
   const yieldTurn = () => {
     if (!game || phase !== "play") return;
+    sfx.yield();
     const otherPlayers = game.players.map((_, i) => i).filter((i) => i !== game.currentPlayerIndex);
     const allOthersYielded = otherPlayers.length > 0 && otherPlayers.every((i) => lastYielded.includes(i));
     // Yield-Loop-Schutz: verhindere Endlosschleife wenn alle gepasst haben
@@ -674,6 +783,18 @@ export default function RegicideApp() {
     const others = g.players.map((_, i) => i).filter((i) => i !== playerIdx);
     const allOthersYielded = others.length > 0 && others.every((i) => lyielded.includes(i));
     if (allOthersYielded || others.length === 0) {
+      sfx.gameover();
+      const hsEntryLoss = {
+        date: new Date().toLocaleDateString(lang === "de" ? "de-DE" : "en-GB"),
+        players: numPlayers,
+        won: false,
+        enemies: totalStats.enemies,
+        damage: totalStats.damage,
+        cards: totalStats.cards,
+        jesters: soloJestersUsed,
+        score: totalStats.damage + totalStats.enemies * 50,
+      };
+      saveHighscore(hsEntryLoss);
       addLog(t(lang, "Keine Karten und kein Passen möglich – Niederlage!", "No cards and cannot yield – defeat!"));
       setGame({ ...g, lost: true });
       setScreen("gameover");
@@ -681,6 +802,161 @@ export default function RegicideApp() {
     }
     return false;
   };
+
+  if (screen === "highscores") {
+    const scores = loadHighscores();
+    return (
+      <div className="min-h-screen p-4 md:p-8 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)" }}>
+        <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle,#fbbf24,transparent 70%)" }} />
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <button onClick={() => setScreen("menu")} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>← {t(lang, "Zurück", "Back")}</button>
+            <h1 className="text-3xl font-black text-white drop-shadow">🏆 {t(lang, "Bestenliste", "Highscores")}</h1>
+            <button onClick={() => { clearHighscores(); setScreen("menu"); setScreen("highscores"); }} className={`px-3 py-1.5 text-xs font-bold ${glass.btnDanger}`}>{t(lang, "Löschen", "Clear")}</button>
+          </div>
+          {scores.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">🏆</div>
+              <p className="text-white/40 text-lg">{t(lang, "Noch keine Einträge. Spiel ein Spiel!", "No entries yet. Play a game!")}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {scores.map((s, i) => {
+                const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i+1}`;
+                const rankCol = i === 0 ? "#fbbf24" : i === 1 ? "#d1d5db" : i === 2 ? "#b45309" : "rgba(255,255,255,0.3)";
+                return (
+                  <div key={i} className="rounded-2xl p-4" style={{ background: i < 3 ? `rgba(255,255,255,0.09)` : "rgba(255,255,255,0.05)", border: `1px solid ${i < 3 ? rankCol + "44" : "rgba(255,255,255,0.1)"}`, boxShadow: i === 0 ? `0 0 24px ${rankCol}22` : undefined }}>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl w-8 text-center">{medal}</span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-white text-lg" style={{ color: rankCol }}>{s.score} {t(lang, "Pkt", "pts")}</span>
+                          <span className={`px-2 py-0.5 rounded-lg text-xs font-bold ${s.won ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" : "bg-red-500/20 text-red-300 border border-red-500/30"}`}>{s.won ? (lang==="de"?"SIEG":"WIN") : (lang==="de"?"NIEDERLAGE":"LOSS")}</span>
+                          <span className="text-white/30 text-xs">{s.date}</span>
+                          <span className="text-white/30 text-xs">👤 {s.players}P</span>
+                        </div>
+                        <div className="flex gap-3 mt-1 flex-wrap">
+                          <span className="text-white/50 text-xs">⚔️ {s.damage} {t(lang,"Schaden","dmg")}</span>
+                          <span className="text-white/50 text-xs">👑 {s.enemies}/12 {t(lang,"Feinde","enemies")}</span>
+                          <span className="text-white/50 text-xs">🃏 {s.cards} {t(lang,"Karten","cards")}</span>
+                          {s.players === 1 && <span className="text-white/50 text-xs">🃏 Jester: {s.jesters}x</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="text-center py-6 space-y-2">
+            <p className="text-white/30 text-xs">{t(lang, "Score = Schaden + Feinde×50 + Bonus für Jester-freien Solo-Sieg (+100)", "Score = damage + enemies×50 + bonus for Jester-free solo win (+100)")}</p>
+            <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
+          </div>
+          <div className="text-center pb-4">
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "rules") {
+    const sections = [
+      {
+        icon: "🎯",
+        titleDe: "Ziel des Spiels",
+        titleEn: "Goal",
+        bodyDe: "Besiegt gemeinsam alle 12 royalen Feinde – 4 Buben, 4 Damen und 4 Könige – bevor euch die Karten ausgehen. Ihr spielt kooperativ: entweder gewinnt ihr alle, oder ihr verliert alle.",
+        bodyEn: "Together defeat all 12 royal enemies – 4 Jacks, 4 Queens and 4 Kings – before you run out of cards. You play cooperatively: either everyone wins, or everyone loses.",
+      },
+      {
+        icon: "🃏",
+        titleDe: "Aufbau",
+        titleEn: "Setup",
+        bodyDe: "Mischt die 4 Buben, legt sie unten hin. Dann die 4 Damen darauf, dann die 4 Könige obenauf – der erste Feind ist also ein Bube. Jeder Spieler zieht seine Startkarten (Solo: 8, 2 Spieler: 7, 3 Spieler: 6, 4 Spieler: 5). Der Rest ist der Nachziehstapel.",
+        bodyEn: "Shuffle the 4 Jacks and place them at the bottom. Then the 4 Queens, then the 4 Kings on top – so the first enemy is a Jack. Each player draws their starting hand (Solo: 8, 2p: 7, 3p: 6, 4p: 5). The rest is the draw pile.",
+      },
+      {
+        icon: "⚔️",
+        titleDe: "Ablauf eines Zuges",
+        titleEn: "Turn Structure",
+        bodyDe: "1. Spiele 1 oder mehrere Karten (Kombo-Regeln beachten!).\n2. Wende die Farb-Kräfte an.\n3. Füge Schaden dem Feind zu.\n4. Falls der Feind überlebt, greift er zurück an – decke seinen Angriffswert mit Handkarten ab (Abwerfen).\n5. Ziehe Karten auf deine Handgröße auf.\n6. Nächster Spieler ist dran.",
+        bodyEn: "1. Play 1 or more cards (follow combo rules!).\n2. Apply suit powers.\n3. Deal damage to the enemy.\n4. If the enemy survives, it counter-attacks – cover its attack value by discarding hand cards.\n5. Draw back up to hand size.\n6. Next player takes their turn.",
+      },
+      {
+        icon: "🔗",
+        titleDe: "Kombos",
+        titleEn: "Combos",
+        bodyDe: "Mehrere Karten gleichzeitig spielen:\n• Gleicher Rang + Gesamtwert ≤ 10\n• Tier-Begleiter: Ein Ass (A) mit genau 1 weiteren Karte (beliebiger Rang)\n• Nur 1 Jester alleine spielbar\nDer Angriffswert ist die Summe aller gespielten Karten.",
+        bodyEn: "Play multiple cards at once:\n• Same rank + total value ≤ 10\n• Animal companion: An Ace (A) paired with exactly 1 other card (any rank)\n• Only 1 Jester can be played alone\nAttack value is the sum of all played cards.",
+      },
+      {
+        icon: "✨",
+        titleDe: "Farb-Kräfte",
+        titleEn: "Suit Powers",
+        bodyDe: "♥ Herz – Heilung: Lege so viele Karten vom Ablagestapel zurück in den Nachziehstapel wie der Angriffswert.\n♦ Karo – Ziehen: Alle Spieler ziehen zusammen so viele Karten wie der Angriffswert (bis zur Handgrenze).\n♣ Kreuz – Verdoppeln: Der Angriffswert wird verdoppelt.\n♠ Pik – Schild: Reduziere den Angriff des aktuellen Feindes dauerhaft um den Angriffswert.",
+        bodyEn: "♥ Hearts – Heal: Move as many cards as the attack value from the discard pile back to the draw pile.\n♦ Diamonds – Draw: All players collectively draw cards equal to the attack value (up to hand limit).\n♣ Clubs – Double: The attack value is doubled.\n♠ Spades – Shield: Permanently reduce the current enemy's attack by the attack value.",
+      },
+      {
+        icon: "🛡",
+        titleDe: "Immunität",
+        titleEn: "Immunity",
+        bodyDe: "Jeder Feind ist immun gegen die Farbe seiner eigenen Karte. Zum Beispiel: Der Herz-Bube (J♥) ist immun gegen Herz-Kräfte – Heilung hat keine Wirkung. Ein Jester hebt diese Immunität auf.",
+        bodyEn: "Each enemy is immune to the power of its own suit. For example: the Jack of Hearts (J♥) is immune to Hearts – healing has no effect. A Jester cancels this immunity.",
+      },
+      {
+        icon: "💀",
+        titleDe: "Feind besiegt",
+        titleEn: "Enemy Defeated",
+        bodyDe: "Genau 0 HP: Der Feind kommt oben auf den Nachziehstapel (nützlich!).\nOverkill (HP < 0): Feind und alle Tischkarten kommen auf den Ablagestapel.\nDer nächste Feind wird sofort aufgedeckt. Alle Spieler ziehen Karten auf ihre Handgröße auf.",
+        bodyEn: "Exactly 0 HP: The enemy goes on top of the draw pile (useful!).\nOverkill (HP < 0): Enemy and all table cards go to the discard pile.\nThe next enemy is immediately revealed. All players draw back up to hand size.",
+      },
+      {
+        icon: "🃏",
+        titleDe: "Jester (Solo)",
+        titleEn: "Jester (Solo)",
+        bodyDe: "Im Solo-Spiel gibt es keine Jester-Karten im Deck. Stattdessen habt ihr 2 Jester-Marker. Ihr könnt einen Jester jederzeit einsetzen um: (a) vor eurem Zug die Hand komplett zu tauschen, oder (b) nach dem Angriff des Feindes die Hand zu tauschen (statt Karten abzuwerfen).",
+        bodyEn: "In solo play there are no Jester cards in the deck. Instead you have 2 Jester tokens. You can use one at any time to: (a) swap your entire hand before your turn, or (b) swap your hand after an enemy attack (instead of discarding cards).",
+      },
+      {
+        icon: "🏆",
+        titleDe: "Sieg & Niederlage",
+        titleEn: "Win & Loss",
+        bodyDe: "Sieg: Ihr besiegt den letzten König.\nNiederlage: Ein Spieler muss Karten abwerfen, hat aber keine mehr – und alle anderen haben bereits gepasst. Oder: Niemand kann mehr spielen oder passen.",
+        bodyEn: "Win: You defeat the last King.\nLoss: A player must discard cards but has none left – and all others have already yielded. Or: Nobody can play or yield anymore.",
+      },
+    ];
+    return (
+      <div className="min-h-screen p-4 md:p-8 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)" }}>
+        <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle,#7c3aed,transparent 70%)" }} />
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button onClick={() => setScreen("menu")} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>← {t(lang, "Zurück", "Back")}</button>
+            <h1 className="text-3xl font-black text-white drop-shadow">{t(lang, "📖 Regelwerk", "📖 Rules")}</h1>
+          </div>
+          <div className="space-y-4">
+            {sections.map((s, i) => (
+              <div key={i} className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">{s.icon}</span>
+                  <h2 className="text-white font-black text-lg">{lang === "de" ? s.titleDe : s.titleEn}</h2>
+                </div>
+                <p className="text-white/65 text-sm leading-relaxed whitespace-pre-line">{lang === "de" ? s.bodyDe : s.bodyEn}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center py-6">
+            <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
+          </div>
+          <div className="text-center pb-4">
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (screen === "menu") {
     return (
@@ -729,7 +1005,16 @@ export default function RegicideApp() {
             </div>
             <p className="text-white/40 text-xs text-center mt-1">{t(lang, `Handgröße: ${getHandSize(numPlayers)} Karten`, `Hand size: ${getHandSize(numPlayers)} cards`)}</p>
           </div>
+          <div>
+            <p className="text-white/50 text-xs mb-2 text-center tracking-widest uppercase">{t(lang, "Sound", "Sound")}</p>
+            <div className="flex gap-2 justify-center">
+              <button onClick={() => setSoundEnabled(false)} className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${!soundEnabled ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🔇 {t(lang, "Aus", "Off")}</button>
+              <button onClick={() => setSoundEnabled(true)} className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${soundEnabled ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🔊 {t(lang, "An", "On")}</button>
+              </div>
+            </div>
           <button onClick={initGame} className={`w-full py-4 font-black text-xl ${glass.btnPrimary}`}>{t(lang, "Spiel Starten ⚔️", "Start Game ⚔️")}</button>
+          <button onClick={() => setScreen("rules")} className={`w-full py-2.5 font-bold text-sm ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
+          <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 font-bold text-sm ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
           {showRules && (
             <div className="rounded-2xl p-4 text-white/70 text-xs space-y-2 max-h-64 overflow-y-auto" style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <p className="font-bold text-white/90">{t(lang, "Ziel:", "Goal:")}</p>
@@ -743,7 +1028,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.4</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
           </div>
       </div>
     );
@@ -834,7 +1119,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.4</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
           </div>
         </div>
       </div>
