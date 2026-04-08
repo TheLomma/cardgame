@@ -1,4 +1,4 @@
-// v3.7
+// v3.8
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -358,6 +358,66 @@ export default function RegicideApp() {
   };
 
   const addLog = (msg) => setLog((prev) => [msg, ...prev].slice(0, 20));
+
+  // v3.8 – Keyboard Shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      // ignore when typing in inputs
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+
+      if (screen === "game" && game) {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+
+        // 1–8: toggle card by index
+        if (e.key >= "1" && e.key <= "8") {
+          const idx = parseInt(e.key) - 1;
+          if (idx < currentPlayer.hand.length && phase === "play") {
+            toggleCardSelection(currentPlayer.hand[idx].id);
+          }
+          return;
+        }
+
+        // Enter or Space: play selected cards
+        if ((e.key === "Enter" || e.key === " ") && phase === "play") {
+          e.preventDefault();
+          if (selectedCards.length > 0) playCards();
+          return;
+        }
+
+        // Y or P: yield / pass
+        if ((e.key === "y" || e.key === "Y" || e.key === "p" || e.key === "P") && phase === "play") {
+          yieldTurn();
+          return;
+        }
+
+        // Escape: deselect all
+        if (e.key === "Escape") {
+          setSelectedCards([]);
+          return;
+        }
+
+        // J: use solo jester (phase play)
+        if ((e.key === "j" || e.key === "J") && numPlayers === 1 && soloJestersAvail > 0 && phase === "play") {
+          soloFlipJester("step1");
+          return;
+        }
+
+        // J: use solo jester (phase discard)
+        if ((e.key === "j" || e.key === "J") && numPlayers === 1 && soloJestersAvail > 0 && phase === "discard") {
+          soloFlipJester("step4");
+          return;
+        }
+      }
+
+      // M: back to menu from any non-game screen
+      if (e.key === "m" || e.key === "M") {
+        if (screen !== "game") setScreen("menu");
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [screen, game, phase, selectedCards, numPlayers, soloJestersAvail]);
 
   const showAnim = (msg, duration = 2000) => {
     setAnimMsg(msg);
@@ -854,7 +914,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.8</span>
           </div>
         </div>
       </div>
@@ -951,7 +1011,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.8</span>
           </div>
         </div>
       </div>
@@ -1028,7 +1088,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.8</span>
           </div>
       </div>
     );
@@ -1119,7 +1179,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.7</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.8</span>
           </div>
         </div>
       </div>
@@ -1187,7 +1247,7 @@ ${rankLabel}`;
           )}
           {phase === "play" && (
             <>
-              <button onClick={yieldTurn} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>{t(lang, "Passen", "Yield")}</button>
+              <button onClick={yieldTurn} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>{t(lang, "Passen", "Yield")} <kbd className="opacity-40 text-xs ml-1">Y</kbd></button>
               <button
                 onClick={playCards}
                 disabled={selectedCards.length === 0}
@@ -1239,7 +1299,7 @@ ${rankLabel}`;
           {isDiscardTarget && <span className="text-red-300 text-xs font-black animate-pulse">⚠️ {t(lang, "Abwerfen!", "Discard!")}</span>}
         </div>
         <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
-          {player.hand.map((card) => (
+          {player.hand.map((card, cardIdx) => (
             <PlayingCard
               key={card.id}
               card={card}
@@ -1258,7 +1318,8 @@ ${rankLabel}`;
     );
   };
 
-  // v2.1 – Reihenfolge-Anzeige
+  // v3.8 – Keyboard shortcuts active (useEffect registered above)
+    // Shortcut hint bar rendered below TurnOrder in JSX
 
   const themeConfig = CARD_THEMES[theme] || CARD_THEMES.fantasy;
   const bgStyle = { background: themeConfig.bg };
