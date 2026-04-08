@@ -372,18 +372,18 @@ export default function RegicideApp() {
   // v3.7 – Highscores
   const [showHighscores, setShowHighscores] = useState(false);
   const loadHighscores = () => {
-    try { return JSON.parse(localStorage.getItem("regicide_hs") || "[]"); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem("coupdeta_hs") || "[]"); } catch { return []; }
   };
   const saveHighscore = (entry) => {
     try {
       const list = loadHighscores();
       list.push(entry);
       list.sort((a, b) => b.score - a.score);
-      localStorage.setItem("regicide_hs", JSON.stringify(list.slice(0, 10)));
+      localStorage.setItem("coupdeta_hs", JSON.stringify(list.slice(0, 10)));
     } catch {}
   };
   const clearHighscores = () => {
-    try { localStorage.removeItem("regicide_hs"); } catch {}
+    try { localStorage.removeItem("coupdeta_hs"); } catch {}
   };
 
   // v3.4 – floating damage numbers
@@ -1261,7 +1261,7 @@ export default function RegicideApp() {
         <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 rounded-full opacity-30 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #0ea5e9, transparent 70%)" }} />
         <div className="text-center mb-8 relative">
           <h1 className="text-6xl md:text-8xl font-black mb-2 drop-shadow-2xl" style={{ color: "rgba(255,255,255,0.95)", textShadow: "0 0 40px rgba(255,255,255,0.3)" }}>
-            ⚔️ Regicide
+            ⚔️ Coup d'État
           </h1>
           <p className="text-white/60 text-lg">{t(lang, "Das kooperative Kartenspiel", "The cooperative card game")}</p>
         </div>
@@ -1341,7 +1341,7 @@ export default function RegicideApp() {
     const rankLabel = numPlayers === 1 ? soloRank : multiRank;
 
     const copyStats = () => {
-      const text = `Regicide v3.2 – ${won ? (lang==="de"?"SIEG":"VICTORY") : (lang==="de"?"NIEDERLAGE":"DEFEAT")}
+      const text = `Coup d'État v3.2 – ${won ? (lang==="de"?"SIEG":"VICTORY") : (lang==="de"?"NIEDERLAGE":"DEFEAT")}
 ⚔️ ${totalStats.damage} ${lang==="de"?"Schaden":"damage"}  🃏 ${totalStats.cards} ${lang==="de"?"Karten":"cards"}  👑 ${totalStats.enemies} ${lang==="de"?"Feinde":"enemies"}  💚 ${totalStats.healed||0} ${lang==="de"?"Heilung":"healed"}
 ${rankLabel}`;
       navigator.clipboard?.writeText(text).catch(()=>{});
