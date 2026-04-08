@@ -1,4 +1,4 @@
-// v3.1
+// v3.4
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -253,6 +253,23 @@ export default function RegicideApp() {
   const [lastRoundStats, setLastRoundStats] = useState(null);
   const [totalStats, setTotalStats] = useState({ damage: 0, cards: 0, enemies: 0 });
 
+  // v3.4 – floating damage numbers
+  const [floatingNums, setFloatingNums] = useState([]);
+  const [enemyHit, setEnemyHit] = useState(false);
+  const floatIdRef = useRef(0);
+
+  const spawnFloat = (text, color = "#f87171", size = "text-3xl") => {
+    const id = floatIdRef.current++;
+    const x = 40 + Math.random() * 20;
+    setFloatingNums(prev => [...prev, { id, text, color, size, x }]);
+    setTimeout(() => setFloatingNums(prev => prev.filter(f => f.id !== id)), 1400);
+  };
+
+  const triggerEnemyHit = () => {
+    setEnemyHit(true);
+    setTimeout(() => setEnemyHit(false), 400);
+  };
+
   const addLog = (msg) => setLog((prev) => [msg, ...prev].slice(0, 20));
 
   const showAnim = (msg, duration = 2000) => {
@@ -366,6 +383,7 @@ export default function RegicideApp() {
     const shuffledDiscard = shuffle([...g.discardPile]);
     const toHeal = shuffledDiscard.slice(0, baseAttack);
     const newDiscard = shuffledDiscard.slice(baseAttack);
+    spawnFloat(`+${toHeal.length} ♥`, "#34d399", "text-3xl");
     addLog(`♥ ${t(lang, `Heilt ${toHeal.length} Karten zurück`, `Healed ${toHeal.length} cards back`)}`);
     return { ...g, discardPile: newDiscard, drawPile: [...g.drawPile, ...toHeal] };
   };
@@ -391,6 +409,7 @@ export default function RegicideApp() {
         newPlayers[pi] = player;
       }
     }
+    if (drawn > 0) spawnFloat(`+${drawn} ♦`, "#60a5fa", "text-3xl");
     addLog(`♦ ${t(lang, `${drawn} Karten gezogen`, `${drawn} cards drawn`)}`);
     return { g: { ...g, drawPile }, players: newPlayers };
   };
@@ -401,6 +420,7 @@ export default function RegicideApp() {
     const enemyImmuneToS = enemy.suit === "♠" && !enemy.jesterCancelled;
     if (enemyImmuneToS) { addLog(t(lang, "♠ Immunität – Schild blockiert", "♠ Immune – shield blocked")); return enemy; }
     const newAttack = Math.max(0, enemy.attack - baseAttack);
+    spawnFloat(`♠ -${baseAttack}`, "#a78bfa", "text-2xl");
     addLog(`♠ ${t(lang, `Schild: Feind-Angriff ${enemy.attack} → ${newAttack}`, `Shield: Enemy attack ${enemy.attack} → ${newAttack}`)}`);
     return { ...enemy, attack: newAttack };
   };
@@ -521,6 +541,8 @@ export default function RegicideApp() {
     const taggedCards = cards.map((c, idx) => ({ ...c, _dealtDamage: idx === 0 ? attack : 0 }));
     const newHp = enemy.currentHp - attack;
     setRoundStats(prev => ({ damage: prev.damage + attack, cards: prev.cards + cards.length, healed: prev.healed }));
+    triggerEnemyHit();
+    spawnFloat(`-${attack}`, attack >= 20 ? "#fbbf24" : attack >= 10 ? "#f87171" : "#fb923c", attack >= 20 ? "text-5xl" : attack >= 10 ? "text-4xl" : "text-3xl");
     addLog(`⚔️ ${t(lang, `Angriff: ${attack} Schaden → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`, `Attack: ${attack} damage → ${enemy.rank}${enemy.suit} (HP: ${enemy.currentHp} → ${Math.max(0, newHp)})`)}`);
     g = applyHearts({ ...g, players }, cards, baseAttack);
     players = g.players || players;
@@ -534,6 +556,7 @@ export default function RegicideApp() {
       setLastRoundStats(finishedStats);
       setTotalStats(prev => ({ damage: prev.damage + finishedStats.damage, cards: prev.cards + finishedStats.cards, enemies: prev.enemies + 1 }));
       setRoundStats({ damage: 0, cards: 0, healed: 0 });
+      spawnFloat("👑 BESIEGT!", "#fbbf24", "text-4xl");
       showAnim(t(lang, `🎉 ${enemy.rank}${enemy.suit} BESIEGT! 👑✨`, `🎉 ${enemy.rank}${enemy.suit} DEFEATED! 👑✨`), 2500);
       addLog(t(lang, `Feind besiegt: ${enemy.rank}${enemy.suit}`, `Enemy defeated: ${enemy.rank}${enemy.suit}`));
       let newDiscard = [...g.discardPile];
@@ -720,7 +743,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.1</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.4</span>
           </div>
       </div>
     );
@@ -728,46 +751,90 @@ export default function RegicideApp() {
 
   if (screen === "gameover" || screen === "victory") {
     const won = screen === "victory";
-    const soloRank = soloJestersUsed === 0 ? "🥇 Gold" : soloJestersUsed === 1 ? "🥈 Silber/Silver" : "🥉 Bronze";
+    const soloRank = soloJestersUsed === 0 ? "🥇 Gold" : soloJestersUsed === 1 ? "🥈 Silber" : "🥉 Bronze";
+    const multiRank = totalStats.enemies >= 12 ? (totalStats.damage >= 300 ? "🥇 Gold" : totalStats.damage >= 200 ? "🥈 Silber" : "🥉 Bronze") : "🥉 Bronze";
+    const rankLabel = numPlayers === 1 ? soloRank : multiRank;
+
+    const copyStats = () => {
+      const text = `Regicide v3.2 – ${won ? (lang==="de"?"SIEG":"VICTORY") : (lang==="de"?"NIEDERLAGE":"DEFEAT")}
+⚔️ ${totalStats.damage} ${lang==="de"?"Schaden":"damage"}  🃏 ${totalStats.cards} ${lang==="de"?"Karten":"cards"}  👑 ${totalStats.enemies} ${lang==="de"?"Feinde":"enemies"}  💚 ${totalStats.healed||0} ${lang==="de"?"Heilung":"healed"}
+${rankLabel}`;
+      navigator.clipboard?.writeText(text).catch(()=>{});
+      showAnim(lang==="de"?"📋 Kopiert!":"📋 Copied!", 1500);
+    };
+
+    // Confetti particles (CSS keyframes injected once)
+    const confettiColors = ["#fbbf24","#f87171","#34d399","#60a5fa","#a78bfa","#f472b6"];
+    const particles = won ? Array.from({length:24},(_,i)=>i) : [];
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden"
         style={{ background: won ? "linear-gradient(135deg,#1a1000,#3d2800,#1a1000)" : "linear-gradient(135deg,#1a0000,#3d0000,#0a0a0a)" }}>
-        <div className="text-center space-y-6 relative max-w-md w-full">
-          <div className="text-8xl drop-shadow-2xl">{won ? "👑" : "💀"}</div>
-          <h2 className="text-5xl font-black" style={{ color: won ? "rgba(251,191,36,0.95)" : "rgba(239,68,68,0.95)" }}>
+
+        {/* Confetti */}
+        {particles.map((i) => {
+          const left = (i * 37 + 7) % 100;
+          const delay = (i * 0.17) % 2;
+          const dur = 2.5 + (i % 5) * 0.4;
+          const color = confettiColors[i % confettiColors.length];
+          const size = 8 + (i % 4) * 4;
+          return (
+            <div key={i} className="absolute top-0 pointer-events-none" style={{
+              left: `${left}%`,
+              width: size, height: size,
+              background: color,
+              borderRadius: i % 3 === 0 ? "50%" : "2px",
+              opacity: 0.85,
+              animation: `confettiFall ${dur}s ${delay}s ease-in infinite`,
+              transform: `rotate(${i*23}deg)`,
+            }} />
+          );
+        })}
+        <style>{`@keyframes confettiFall{0%{transform:translateY(-40px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}`}</style>
+
+        <div className="text-center space-y-5 relative max-w-lg w-full z-10">
+          <div className="text-8xl drop-shadow-2xl" style={{filter: won?"drop-shadow(0 0 32px #fbbf24)":undefined}}>{won ? "👑" : "💀"}</div>
+          <h2 className="text-5xl font-black" style={{ color: won ? "rgba(251,191,36,0.95)" : "rgba(239,68,68,0.95)", textShadow: won?"0 0 40px rgba(251,191,36,0.5)":"0 0 40px rgba(239,68,68,0.4)" }}>
             {won ? t(lang, "SIEG!", "VICTORY!") : t(lang, "NIEDERLAGE!", "DEFEAT!")}
           </h2>
-          {won && numPlayers === 1 && <div className="text-2xl font-black text-white/80">{soloRank} {t(lang, "Sieg!", "Victory!")}</div>}
-          <p className="text-white/60 text-lg">
-            {won ? t(lang, "Ihr habt alle Könige besiegt!", "You defeated all kings!") : t(lang, "Das Königreich ist gefallen.", "The kingdom has fallen.")}
+
+          {won && <div className="text-3xl font-black" style={{textShadow:"0 0 20px rgba(255,255,255,0.3)"}}>{rankLabel} {t(lang,"Sieg!","Victory!")}</div>}
+
+          <p className="text-white/60 text-base">
+            {won ? t(lang, "Ihr habt alle Könige besiegt! Das Königreich ist gerettet.", "You defeated all kings! The kingdom is saved.") : t(lang, "Das Königreich ist gefallen. Versucht es erneut!", "The kingdom has fallen. Try again!")}
           </p>
-          {won && (
-            <div className="rounded-2xl p-4 space-y-2 text-left" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.15)" }}>
-              <p className="text-yellow-300 font-black text-sm tracking-widest uppercase text-center mb-3">📊 {t(lang, "Gesamtstatistik", "Final Stats")}</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="text-center">
-                  <p className="text-2xl font-black text-white">{totalStats.damage}</p>
-                  <p className="text-white/40 text-xs">⚔️ {t(lang, "Schaden", "Damage")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black text-white">{totalStats.cards}</p>
-                  <p className="text-white/40 text-xs">🃏 {t(lang, "Karten", "Cards")}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black text-white">{totalStats.enemies}</p>
-                  <p className="text-white/40 text-xs">👑 {t(lang, "Feinde", "Enemies")}</p>
-                </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon:"⚔️", labelDe:"Schaden", labelEn:"Damage", value: totalStats.damage, color:"#f87171" },
+              { icon:"🃏", labelDe:"Karten gespielt", labelEn:"Cards played", value: totalStats.cards, color:"#60a5fa" },
+              { icon:"👑", labelDe:"Feinde besiegt", labelEn:"Enemies defeated", value: totalStats.enemies, color:"#fbbf24" },
+              { icon:"💚", labelDe:"Geheilt", labelEn:"Healed", value: totalStats.healed||0, color:"#34d399" },
+            ].map((s,i)=>(
+              <div key={i} className="rounded-2xl p-4 text-center" style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${s.color}33`,boxShadow:`0 0 16px ${s.color}22`}}>
+                <div className="text-2xl mb-1">{s.icon}</div>
+                <div className="text-3xl font-black" style={{color:s.color,textShadow:`0 0 12px ${s.color}88`}}>{s.value}</div>
+                <div className="text-white/40 text-xs mt-1">{lang==="de"?s.labelDe:s.labelEn}</div>
               </div>
-            </div>
-          )}
-          <div className="flex gap-4 justify-center">
-            <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-8 py-3 font-bold ${glass.btn}`}>{t(lang, "Hauptmenü", "Main Menu")}</button>
-            <button onClick={initGame} className={`px-8 py-3 font-bold ${glass.btnPrimary}`}>{t(lang, "Nochmal spielen", "Play Again")}</button>
+            ))}
           </div>
 
-          {/* Footer */}
-          <div className="text-center py-2">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.1</span>
+          {/* Last round stats if available */}
+          {lastRoundStats && (
+            <div className="rounded-xl px-4 py-2 text-xs text-yellow-200/70" style={{background:"rgba(251,191,36,0.08)",border:"1px solid rgba(251,191,36,0.2)"}}>
+              🏅 {t(lang,`Letzter Kampf: ${lastRoundStats.damage} Schaden, ${lastRoundStats.cards} Karten`,`Last fight: ${lastRoundStats.damage} damage, ${lastRoundStats.cards} cards`)}
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-center flex-wrap">
+            <button onClick={copyStats} className={`px-5 py-2.5 font-bold text-sm ${glass.btn}`}>📋 {t(lang,"Stats kopieren","Copy Stats")}</button>
+            <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-6 py-2.5 font-bold ${glass.btn}`}>{t(lang, "Hauptmenü", "Main Menu")}</button>
+            <button onClick={initGame} className={`px-8 py-2.5 font-bold ${glass.btnPrimary}`}>{t(lang, "Nochmal spielen", "Play Again")}</button>
+          </div>
+
+          <div className="text-center py-1">
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v3.4</span>
           </div>
         </div>
       </div>
