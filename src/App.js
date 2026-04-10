@@ -1,4 +1,4 @@
-// v6.6 – Feind-HP-Verlauf pro Spieler (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
+// v6.7 – Feature 1: Rundenübersicht-Banner (ausgebaut) nach jedem besiegten Feind (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -737,8 +737,8 @@ export default function RegicideApp() {
     if (newHp <= 0) {
       const finishedStats = { damage: roundStats.damage + attack, cards: roundStats.cards + cards.length, healed: roundStats.healed };
       setLastRoundStats(finishedStats);
-      setRoundBanner({ enemy: `${enemy.rank}${enemy.suit}`, damage: finishedStats.damage, cards: finishedStats.cards, time: formatTime(elapsedSeconds) });
-      setTimeout(() => setRoundBanner(null), 3500);
+      setRoundBanner({ enemy: `${enemy.rank}${enemy.suit}`, damage: finishedStats.damage, cards: finishedStats.cards, time: formatTime(elapsedSeconds), damageByPlayer: { ...(g.damageByPlayer || {}) }, enemiesLeft: g.enemyDeck.length });
+      // Banner bleibt bis Spieler klickt (kein auto-close)
       setTotalStats(prev => ({ damage: prev.damage + finishedStats.damage, cards: prev.cards + finishedStats.cards, enemies: prev.enemies + 1 }));
       setRoundStats({ damage: 0, cards: 0, healed: 0 });
       sfx.enemyDefeated();
@@ -899,7 +899,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.6</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
         </div>
       </div>
     );
@@ -931,7 +931,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zum Menü ⚔️", "To Menu ⚔️")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.6</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
         </div>
       </div>
     );
@@ -990,7 +990,7 @@ export default function RegicideApp() {
           <button onClick={() => setScreen("rules")} className={`w-full py-2.5 ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
           <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
         </div>
-        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.6</span></div>
+        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.7</span></div>
       </div>
     );
   }
@@ -1030,7 +1030,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-6 py-2.5 font-bold ${glass.btn}`}>{t(lang,"Hauptmenü","Main Menu")}</button>
             <button onClick={initGame} className={`px-8 py-2.5 font-bold ${glass.btnPrimary}`}>{t(lang,"Nochmal spielen","Play Again")}</button>
           </div>
-          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.6</span></div>
+          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
         </div>
       </div>
     );
@@ -1386,7 +1386,7 @@ export default function RegicideApp() {
             {/* Timer + version */}
             <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)"}}>
               <span className="text-white/50 text-xs">⏱ {formatTime(elapsedSeconds)}</span>
-              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.6</span>
+              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.7</span>
               <button onClick={()=>setGameLayout("arena")} className={`px-2 py-1 text-xs font-bold ${glass.btn}`}>⚔️</button>
             </div>
             {/* Enemy queue */}
