@@ -1,4 +1,4 @@
-// v6.0 – PauseOverlay im Game-Return eingebunden: Floating-Damage, HP-Shake, Spieler-Namen editierbar, Rundenzeitmesser
+// v6.1 – PauseOverlay im Game-Return eingebunden: Floating-Damage, HP-Shake, Spieler-Namen editierbar, Rundenzeitmesser
 // v4.8 – Stabil (Doppel-Banner, doppelter Return, newDiscard-Fix)
 // v4.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
 import { useState, useRef, useEffect } from "react";
@@ -439,8 +439,7 @@ export default function RegicideApp() {
     panel: "backdrop-blur-2xl bg-white/8 border border-white/20 rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.35),inset_0_1.5px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.15)]",
     card: "backdrop-blur-xl bg-white/10 border border-white/25 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.1)]",
   };
-  // Feature C – Spieler-Namen editierbar
-  const [playerNames, setPlayerNames] = useState(["Spieler 1", "Spieler 2", "Spieler 3", "Spieler 4"]);
+  // Feature C – Spieler-Namen (fest, keine Eingabe im Menü)
 
   // Feature D – Rundenzeitmesser
   const [gameStartTime, setGameStartTime] = useState(null);
@@ -603,7 +602,7 @@ export default function RegicideApp() {
     const players = [];
     let remaining = [...playerDeck];
     for (let i = 0; i < numPlayers; i++) {
-      const customName = playerNames[i] && playerNames[i].trim() !== "" ? playerNames[i] : `${t(lang, "Spieler", "Player")} ${i + 1}`;
+      const customName = `${t(lang, "Spieler", "Player")} ${i + 1}`;
       players.push({ id: i, name: customName, hand: remaining.splice(0, handSize) });
     }
     const newGame = {
@@ -1232,7 +1231,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.1</span>
           </div>
         </div>
       </div>
@@ -1329,7 +1328,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.1</span>
           </div>
         </div>
       </div>
@@ -1418,7 +1417,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.0</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.1</span>
           </div>
       </div>
     );
@@ -1509,7 +1508,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.1</span>
           </div>
         </div>
       </div>
@@ -1832,6 +1831,7 @@ ${rankLabel}`;
 
         {/* Log */}
         <div className="rounded-2xl p-3 max-h-32 overflow-y-auto" style={{ background: "rgba(0,0,0,0.25)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <style>{`@keyframes logSlideIn{0%{opacity:0;transform:translateX(-8px) scale(0.97)}60%{opacity:1;transform:translateX(2px) scale(1.01)}100%{opacity:1;transform:translateX(0) scale(1)}}.log-new{animation:logSlideIn 0.35s ease-out forwards;background:rgba(255,255,255,0.07);border-radius:6px;padding-left:4px;}`}</style>
           <p className="text-white/30 text-xs mb-1 font-bold tracking-widest uppercase">{t(lang, "Log", "Log")}</p>
           {log.map((entry, i) => {
             const isAttack = entry.includes("\u2694") || entry.includes("\ud83d\udc7f");
