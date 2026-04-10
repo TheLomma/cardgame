@@ -1,4 +1,4 @@
-// v5.6 – Liquid Glass Design + Lesbarkeit
+// v5.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -63,6 +63,18 @@ function createDeck(numPlayers) {
     deck.push({ rank: "🃏", suit: "🃏", value: 0, attack: 0, id: `Jester${j}`, type: "jester" });
   }
   return deck;
+}
+
+// BUG FIX #2: Royals als Handkarten spielbar machen.
+// Besiegte Royals kommen per newDraw auf den Stapel und können gezogen werden.
+// getCardValue() gibt J=10, Q=15, K=20 zurück – Suit-Power wird normal angewendet.
+// Damit toggleCardSelection und playCards korrekt funktionieren,
+// behandeln wir Royals (type undefined) wie normale Karten (kein Jester, kein Animal).
+function getRoyalHandValue(card) {
+  if (card.rank === "J") return { value: 10, attack: 10 };
+  if (card.rank === "Q") return { value: 15, attack: 15 };
+  if (card.rank === "K") return { value: 20, attack: 20 };
+  return null;
 }
 
 function createEnemyDeck() {
@@ -210,7 +222,11 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
         transition: "opacity 0.4s ease, transform 0.4s ease",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(-12px)",
-      }} style={{ background: "rgba(220,50,50,0.12)", backdropFilter: "blur(32px) saturate(180%)", border: "1.5px solid rgba(255,120,120,0.3)", boxShadow: "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35), inset 0 -1px 0 rgba(0,0,0,0.15)" }}>
+        background: "rgba(220,50,50,0.12)",
+        backdropFilter: "blur(32px) saturate(180%)",
+        border: "1.5px solid rgba(255,120,120,0.3)",
+        boxShadow: "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35), inset 0 -1px 0 rgba(0,0,0,0.15)",
+      }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-3xl drop-shadow">{enemy.rank}</span>
@@ -542,9 +558,14 @@ export default function RegicideApp() {
       if (prev.length === 0) return [cardId];
       const firstCard = currentHand.find((c) => c.id === prev[0]);
       if (!firstCard) return [cardId];
+      // Jester immer allein
       if (clickedCard.type === "jester" || firstCard.type === "jester") return [cardId];
       const isFirstAnimal = firstCard.rank === "A";
       const isClickedAnimal = clickedCard.rank === "A";
+      // BUG FIX #2: Royals (J/Q/K) können nicht in Combos kombiniert werden (Wert > 10)
+      const isFirstRoyal = ["J","Q","K"].includes(firstCard.rank);
+      const isClickedRoyal = ["J","Q","K"].includes(clickedCard.rank);
+      if (isFirstRoyal || isClickedRoyal) return [cardId]; // Royals immer allein spielen
       if (isFirstAnimal || isClickedAnimal) {
         if (prev.length === 1) return [...prev, cardId];
         return [cardId];
@@ -735,6 +756,9 @@ export default function RegicideApp() {
     if (cards.length === 0) return;
     if (cards.some((c) => c.type === "jester")) { playJester(); return; }
     if (cards.length > 1) {
+      // BUG FIX #2: Royals dürfen nicht kombiniert werden
+      const hasRoyal = cards.some((c) => ["J","Q","K"].includes(c.rank));
+      if (hasRoyal) { addLog(t(lang, "Ungültig: Royals müssen allein gespielt werden!", "Invalid: Royals must be played alone!")); return; }
       const animals = cards.filter((c) => c.rank === "A");
       if (animals.length > 0) {
         if (cards.length > 2) { addLog(t(lang, "Ungültig: Tier-Begleiter nur mit 1 weiteren Karte!", "Invalid: Animal companion can only pair with 1 other card!")); return; }
@@ -838,9 +862,10 @@ export default function RegicideApp() {
         setDiscardNeeded(0);
         setDiscardedSoFar(0);
       } else {
+        // FIX #1: Aktueller Spieler leidet Schaden – currentPlayerIndex bleibt beim Abwerfenden
         addLog(`👿 ${t(lang, `${enemy.rank}${enemy.suit} greift an: ${incomingDamage} Schaden!`, `${enemy.rank}${enemy.suit} attacks for ${incomingDamage} damage!`)}`);
         showAnim(t(lang, `⚠️ ${incomingDamage} Schaden – Karten abwerfen!`, `⚠️ ${incomingDamage} damage – discard cards!`));
-        setGame({ ...g, players, currentEnemy: enemy, currentPlayerIndex: nextPlayerIndex, tableCards });
+        setGame({ ...g, players, currentEnemy: enemy, currentPlayerIndex: g.currentPlayerIndex, tableCards, _nextPlayerAfterDiscard: nextPlayerIndex });
         setPhase("discard");
         setDiscardNeeded(incomingDamage);
         setDiscardedSoFar(0);
@@ -1095,7 +1120,7 @@ export default function RegicideApp() {
             })}
           </div>
           <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.6</span></div>
+          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.7</span></div>
         </div>
       </div>
     );
@@ -1297,9 +1322,16 @@ export default function RegicideApp() {
           <div>
             {/* Schritt 18 – Dark/Light Mode Toggle im Menü */}
             <p className="text-xs mb-2 text-center tracking-widest uppercase text-white/50">{t(lang, "Modus", "Mode")}</p>
-            <div className="flex gap-2 justify-center mb-4">
-              
-            </div>
+              <div className="flex gap-2 justify-center mb-4">
+                {Object.entries(GAME_LAYOUTS).map(([key, val]) => (
+                  <button key={key} onClick={() => setGameLayout(key)}
+                    className={`px-5 py-2 rounded-xl font-bold text-sm transition-all ${
+                      gameLayout === key ? "bg-white/90 text-gray-900 scale-105 shadow-lg" : glass.btn
+                    }`}>
+                    {key === "arena" ? "⚔️" : "📊"} {lang === "de" ? val.name_de : val.name_en}
+                  </button>
+                ))}
+              </div>
             <p className="text-xs mb-2 text-center tracking-widest uppercase text-white/50">{t(lang, "Anzahl Spieler", "Number of Players")}</p>
             <div className="flex gap-2 justify-center">
               {[1, 2, 3, 4].map((n) => (
@@ -1331,7 +1363,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.6</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.7</span>
           </div>
       </div>
     );
@@ -1422,7 +1454,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.7</span>
           </div>
         </div>
       </div>
