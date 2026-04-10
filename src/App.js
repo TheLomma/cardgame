@@ -1,3 +1,4 @@
+// v5.9 – Features A+B+C+D: Floating-Damage, HP-Shake, Spieler-Namen editierbar, Rundenzeitmesser
 // v5.8 – Stabil (Doppel-Banner, doppelter Return, newDiscard-Fix)
 // v5.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
 import { useState, useRef, useEffect } from "react";
@@ -293,14 +294,26 @@ function DeckVisual({ count, color = "#a78bfa", label }) {
   );
 }
 
+// Feature B – HP-Shake-Keyframe (injected once globally)
+const SHAKE_STYLE = `@keyframes enemyShake{0%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}100%{transform:translateX(0)}}`;
+
 // Schritt 11 – Animierter Feind-Übergang
-function EnemyCard({ enemy, lang, tableCards = [] }) {
+function EnemyCard({ enemy, lang, tableCards = [], shaking = false }) {
   const isRed = enemy.suit === "♥" || enemy.suit === "♦";
   const hpPct = Math.max(0, Math.min(100, (enemy.currentHp / enemy.hp) * 100));
   const hpColor = hpPct > 60 ? "#4ade80" : hpPct > 30 ? "#facc15" : "#f87171";
 
   const cumulativeDamage = (tableCards || []).reduce((s, c) => s + (c._dealtDamage || 0), 0);
   const damagePct = Math.max(0, Math.min(100, (cumulativeDamage / enemy.hp) * 100));
+
+  // Feature A – Floating damage numbers über der Feindkarte
+  const [localFloats, setLocalFloats] = useState([]);
+  const localFloatId = useRef(0);
+  const spawnLocalFloat = (text, color) => {
+    const id = localFloatId.current++;
+    setLocalFloats(prev => [...prev, { id, text, color }]);
+    setTimeout(() => setLocalFloats(prev => prev.filter(f => f.id !== id)), 1200);
+  };
 
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -310,6 +323,16 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
   }, [enemy.id]);
 
   return (
+    <div className="relative">
+      <style>{SHAKE_STYLE}</style>
+      {/* Feature A – Floating damage numbers */}
+      {localFloats.map(f => (
+        <div key={f.id} className="absolute left-1/2 -translate-x-1/2 z-50 font-black text-3xl pointer-events-none select-none"
+          style={{ color: f.color, top: 8, animation: "floatUp 1.2s ease-out forwards", textShadow: `0 0 12px ${f.color}` }}>
+          {f.text}
+        </div>
+      ))}
+      <style>{`@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-60px)}}`}</style>
     <div className="rounded-2xl p-3 space-y-2 TURNORDER_ANCHOR"
       style={{
         transition: "opacity 0.4s ease, transform 0.4s ease",
@@ -319,6 +342,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
         backdropFilter: "blur(32px) saturate(180%)",
         border: "1.5px solid rgba(255,120,120,0.3)",
         boxShadow: "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35), inset 0 -1px 0 rgba(0,0,0,0.15)",
+        animation: shaking ? "enemyShake 0.45s ease" : undefined,
       }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -374,6 +398,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
       {enemy.jesterCancelled && (
         <p className="text-xs text-purple-300/80 font-bold">🃏 {lang === "de" ? "Immunität aufgehoben" : "Immunity cancelled"}</p>
       )}
+    </div>
     </div>
   );
 }
@@ -460,6 +485,21 @@ export default function RegicideApp() {
     panel: "backdrop-blur-2xl bg-white/8 border border-white/20 rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.35),inset_0_1.5px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.15)]",
     card: "backdrop-blur-xl bg-white/10 border border-white/25 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.1)]",
   };
+  // Feature C – Spieler-Namen editierbar
+  const [playerNames, setPlayerNames] = useState(["Spieler 1", "Spieler 2", "Spieler 3", "Spieler 4"]);
+
+  // Feature D – Rundenzeitmesser
+  const [gameStartTime, setGameStartTime] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useEffect(() => {
+    if (!gameStartTime) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - gameStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gameStartTime]);
+  const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
   // Schritt 15 – Log-Animationen: neue Einträge tracken
   const [newLogIdx, setNewLogIdx] = useState(-1);
   const [gameLayout, setGameLayout] = useState("arena");
@@ -510,9 +550,12 @@ export default function RegicideApp() {
     setTimeout(() => setFloatingNums(prev => prev.filter(f => f.id !== id)), 1400);
   };
 
+  const [enemyShaking, setEnemyShaking] = useState(false);
   const triggerEnemyHit = () => {
     setEnemyHit(true);
+    setEnemyShaking(true);
     setTimeout(() => setEnemyHit(false), 400);
+    setTimeout(() => setEnemyShaking(false), 450);
   };
 
   const addLog = (msg) => {
@@ -606,7 +649,8 @@ export default function RegicideApp() {
     const players = [];
     let remaining = [...playerDeck];
     for (let i = 0; i < numPlayers; i++) {
-      players.push({ id: i, name: `${t(lang, "Spieler", "Player")} ${i + 1}`, hand: remaining.splice(0, handSize) });
+      const customName = playerNames[i] && playerNames[i].trim() !== "" ? playerNames[i] : `${t(lang, "Spieler", "Player")} ${i + 1}`;
+      players.push({ id: i, name: customName, hand: remaining.splice(0, handSize) });
     }
     const newGame = {
       players,
@@ -621,6 +665,8 @@ export default function RegicideApp() {
     };
     setSoloJestersUsed(0);
     setSoloJestersAvail(numPlayers === 1 ? 2 : 0);
+    setGameStartTime(Date.now());
+    setElapsedSeconds(0);
     setLastYielded([]);
     setGame(newGame);
     setSelectedCards([]);
@@ -1136,7 +1182,7 @@ export default function RegicideApp() {
             </div>
             <div className="text-white/70 text-xs font-bold uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-lg">{phase}</div>
           </div>
-          <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} />
+          <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} shaking={enemyShaking} />
           <div className="p-2 md:p-3 rounded-xl" style={{background:"rgba(26,26,60,0.4)",backdropFilter:"blur(32px) saturate(180%)",border:"1.5px solid rgba(201,168,76,0.35)",borderRadius:16,boxShadow:"0 8px 40px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,220,100,0.15), inset 0 -1px 0 rgba(0,0,0,0.15)"}}>
             <div className="flex items-center gap-2 flex-wrap">
               {phase==="jester" && (
@@ -1213,7 +1259,7 @@ export default function RegicideApp() {
             })}
           </div>
           <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.8</span></div>
+          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.9</span></div>
         </div>
       </div>
     );
@@ -1270,7 +1316,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
           </div>
         </div>
       </div>
@@ -1367,7 +1413,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
           </div>
         </div>
       </div>
@@ -1456,7 +1502,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.8</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.9</span>
           </div>
       </div>
     );
@@ -1547,7 +1593,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
           </div>
         </div>
       </div>
