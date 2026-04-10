@@ -1,8 +1,8 @@
-// v7.1
+// v7.2
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
-const SUIT_COLORS = { "♥": "#e53e3e", "♦": "#e53e3e", "♣": "#1a202c", "♠": "#1a202c" };
+// SUIT_COLORS removed (unused)
 const SUIT_NAMES_DE = { "♥": "Herz", "♦": "Karo", "♣": "Kreuz", "♠": "Pik" };
 const SUIT_NAMES_EN = { "♥": "Hearts", "♦": "Diamonds", "♣": "Clubs", "♠": "Spades" };
 
@@ -96,13 +96,6 @@ function createDeck(numPlayers) {
   return deck;
 }
 
-function getRoyalHandValue(card) {
-  if (card.rank === "J") return { value: 10, attack: 10 };
-  if (card.rank === "Q") return { value: 15, attack: 15 };
-  if (card.rank === "K") return { value: 20, attack: 20 };
-  return null;
-}
-
 function createEnemyDeck() {
   const enemies = [];
   ROYALS.forEach((royal) => {
@@ -176,14 +169,17 @@ function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
   );
 }
 
-function PlayingCard({ card, selected, onClick, disabled, small = false, isNew = false }) {
+function PlayingCard({ card, selected, onClick, disabled, small = false, isNew = false, lang = "de" }) {
   const [hovered, setHovered] = useState(false);
   const isRed = card.suit === "♥" || card.suit === "♦";
   const isJester = card.type === "jester";
   const color = isJester ? "text-yellow-300" : isRed ? "text-red-300" : "text-white";
   const borderColor = isRed ? "rgba(252,165,165,0.5)" : "rgba(255,255,255,0.25)";
-  const suitPower = !isJester ? (isRed ? (card.suit === "♥" ? SUIT_POWERS_DE["♥"] : SUIT_POWERS_DE["♦"]) : (card.suit === "♣" ? SUIT_POWERS_DE["♣"] : SUIT_POWERS_DE["♠"])) : null;
-  const tooltipContent = isJester ? "Jester: Immunität aufheben / Hand tauschen" : `${card.rank}${card.suit} | Wert: ${card.value} | Angriff: ${card.attack}${suitPower ? " | " + suitPower : ""}`;
+  const SUIT_POWERS_DISPLAY = lang === "de" ? SUIT_POWERS_DE : SUIT_POWERS_EN;
+  const suitPower = !isJester ? SUIT_POWERS_DISPLAY[card.suit] ?? null : null;
+  const tooltipContent = isJester
+    ? (lang === "de" ? "Jester: Immunität aufheben / Hand tauschen" : "Jester: Cancel immunity / swap hand")
+    : `${card.rank}${card.suit} | ${lang === "de" ? "Wert" : "Value"}: ${card.value} | ${lang === "de" ? "Angriff" : "Attack"}: ${card.attack}${suitPower ? " | " + suitPower : ""}`;
 
   if (small) {
     return (
@@ -441,15 +437,13 @@ export default function RegicideApp() {
   const checkAchievements = (stats) => {
     const current = { ...achievementStats.current, ...stats };
     achievementStats.current = current;
-    setUnlockedAchievements(prev => {
-      const newOnes = ACHIEVEMENTS.filter(a => !prev.includes(a.id) && a.check(current));
-      if (newOnes.length === 0) return prev;
-      const updated = [...prev, ...newOnes.map(a => a.id)];
-      try { localStorage.setItem("regicide_ach", JSON.stringify(updated)); } catch {}
-      setNewAchievement(newOnes[0]);
-      setTimeout(() => setNewAchievement(null), 3500);
-      return updated;
-    });
+    const newOnes = ACHIEVEMENTS.filter(a => !unlockedAchievements.includes(a.id) && a.check(current));
+    if (newOnes.length === 0) return;
+    const updated = [...unlockedAchievements, ...newOnes.map(a => a.id)];
+    setUnlockedAchievements(updated);
+    try { localStorage.setItem("regicide_ach", JSON.stringify(updated)); } catch {}
+    setNewAchievement(newOnes[0]);
+    setTimeout(() => setNewAchievement(null), 3500);
   };
   const [enemyDying, setEnemyDying] = useState(false);
   const floatIdRef = useRef(0);
@@ -513,21 +507,23 @@ export default function RegicideApp() {
   const initDailyGame = () => {
     setDailyActive(true);
     setNumPlayers(1);
-    setTimeout(() => initGame(true), 0);
+    // Pass numPlayers=1 directly so initGame doesn't read stale state
+    setTimeout(() => initGame(true, 1), 0);
   };
 
-  const initGame = (isDaily = false) => {
-    const playerDeck = shuffle(createDeck(numPlayers));
+  const initGame = (isDaily = false, overrideNumPlayers = null) => {
+    const effectivePlayers = overrideNumPlayers ?? numPlayers;
+    const playerDeck = shuffle(createDeck(effectivePlayers));
     const enemyDeck = shuffle(createEnemyDeck());
     const jacks = shuffle(enemyDeck.filter((e) => e.rank === "J"));
     const queens = shuffle(enemyDeck.filter((e) => e.rank === "Q"));
     const kings = shuffle(enemyDeck.filter((e) => e.rank === "K"));
     const orderedEnemies = [...jacks, ...queens, ...kings];
-    const effectiveHandSize = (isDaily && dailyChallenge.id === "half_hand") ? Math.max(2, Math.floor(getHandSize(numPlayers) / 2)) : getHandSize(numPlayers);
+    const effectiveHandSize = (isDaily && dailyChallenge.id === "half_hand") ? Math.max(2, Math.floor(getHandSize(effectivePlayers) / 2)) : getHandSize(effectivePlayers);
     const handSize = effectiveHandSize;
     const players = [];
     let remaining = [...playerDeck];
-    for (let i = 0; i < numPlayers; i++) {
+    for (let i = 0; i < effectivePlayers; i++) {
       players.push({ id: i, name: `${t(lang, "Spieler", "Player")} ${i + 1}`, hand: remaining.splice(0, handSize) });
     }
     let finalEnemies = orderedEnemies;
@@ -536,7 +532,7 @@ export default function RegicideApp() {
     }
     const newGame = { players, drawPile: remaining, discardPile: [], enemyDeck: finalEnemies.slice(1), currentEnemy: { ...finalEnemies[0] }, currentPlayerIndex: 0, tableCards: [], damageByPlayer: {}, won: false, lost: false, isDaily: isDaily };
     setSoloJestersUsed(0);
-    setSoloJestersAvail(numPlayers === 1 ? 2 : 0);
+    setSoloJestersAvail(effectivePlayers === 1 ? 2 : 0);
     setGameStartTime(Date.now());
     setElapsedSeconds(0);
     setLastYielded([]);
@@ -608,13 +604,17 @@ export default function RegicideApp() {
     const enemyToCheck = enemy || game?.currentEnemy;
     const hasClubs = cards.some((c) => c.suit === "♣");
     const enemyImmuneToClubs = enemyToCheck?.suit === "♣" && !enemyToCheck?.jesterCancelled;
-    if (hasClubs && !enemyImmuneToClubs) return base * 2;
+    // Daily: no_clubs modifier disables clubs doubling
+    const clubsDisabled = game?.isDaily && dailyChallenge?.id === "no_clubs";
+    if (hasClubs && !enemyImmuneToClubs && !clubsDisabled) return base * 2;
     return base;
   };
 
   const applyHearts = (g, cards, baseAttack) => {
     const heartsCards = cards.filter((c) => c.suit === "♥" && c.type !== "jester");
     if (heartsCards.length === 0) return g;
+    // Daily: no_hearts modifier disables healing
+    if (g.isDaily && dailyChallenge?.id === "no_hearts") { addLog(t(lang, "♥ Tagesmod – Heilung deaktiviert", "♥ Daily mod – healing disabled")); return g; }
     if (g.currentEnemy.suit === "♥" && !g.currentEnemy.jesterCancelled) { addLog(t(lang, "♥ Immunität – Heilung blockiert", "♥ Immune – heal blocked")); return g; }
     const shuffledDiscard = shuffle([...g.discardPile]);
     const toHeal = shuffledDiscard.slice(0, baseAttack);
@@ -817,7 +817,7 @@ export default function RegicideApp() {
       setRoundBanner({ enemy: `${enemy.rank}${enemy.suit}`, damage: finishedStats.damage, cards: finishedStats.cards, time: formatTime(elapsedSeconds), damageByPlayer: { ...(g.damageByPlayer || {}) }, enemiesLeft: g.enemyDeck.length });
       // Banner bleibt bis Spieler klickt (kein auto-close)
       setTotalStats(prev => ({ damage: prev.damage + finishedStats.damage, cards: prev.cards + finishedStats.cards, enemies: prev.enemies + 1 }));
-      checkAchievements({ totalEnemies: achievementStats.current.totalEnemies + 1, exactKills: achievementStats.current.exactKills + (newHp === 0 ? 1 : 0) });
+      checkAchievements({ totalEnemies: achievementStats.current.totalEnemies + 1, exactKills: achievementStats.current.exactKills + (newHp === 0 ? 1 : 0), maxCardsInRound: Math.max(achievementStats.current.maxCardsInRound, finishedStats.cards) });
       setRoundStats({ damage: 0, cards: 0, healed: 0 });
       sfx.enemyDefeated();
       spawnFloat("👑 BESIEGT!", "#fbbf24", "text-4xl");
@@ -833,6 +833,13 @@ export default function RegicideApp() {
         setEnemyDying(false);
         if (g.enemyDeck.length === 0) {
           sfx.victory();
+          const wonSeconds = Math.floor((Date.now() - gameStartTime) / 1000);
+          const handAtWin = players[g.currentPlayerIndex]?.hand?.length ?? 0;
+          checkAchievements({
+            wonInSeconds: wonSeconds,
+            wonWith1Card: handAtWin === 1,
+            soloWinNoJester: numPlayers === 1 && soloJestersUsed === 0,
+          });
           saveHighscore({ date: new Date().toLocaleDateString(), players: numPlayers, won: true, enemies: totalStats.enemies + 1, damage: totalStats.damage + finishedStats.damage, cards: totalStats.cards + finishedStats.cards, jesters: soloJestersUsed, score: totalStats.damage + finishedStats.damage + (totalStats.enemies + 1) * 50 + (soloJestersUsed === 0 ? 100 : 0) });
           setGame({ ...g, players, discardPile: newDiscard, drawPile: newDraw, tableCards: [], won: true });
           setScreen("victory");
@@ -979,7 +986,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.1</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.2</span></div>
         </div>
       </div>
     );
@@ -1011,7 +1018,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zum Menü ⚔️", "To Menu ⚔️")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.1</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.2</span></div>
         </div>
       </div>
     );
@@ -1090,7 +1097,7 @@ export default function RegicideApp() {
               )}
             </div>
         </div>
-        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v7.1</span></div>
+        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v7.2</span></div>
       </div>
     );
   }
@@ -1130,7 +1137,39 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-6 py-2.5 font-bold ${glass.btn}`}>{t(lang,"Hauptmenü","Main Menu")}</button>
             <button onClick={initGame} className={`px-8 py-2.5 font-bold ${glass.btnPrimary}`}>{t(lang,"Nochmal spielen","Play Again")}</button>
           </div>
-          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.1</span></div>
+          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.2</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (screen === "achievements") {
+    return (
+      <div className="min-h-screen p-4 md:p-8" style={{ background: "linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)" }}>
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-8">
+            <button onClick={() => setScreen("menu")} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>← {t(lang, "Zurück", "Back")}</button>
+            <h1 className="text-3xl font-black text-white">🏅 {t(lang, "Erfolge", "Achievements")} <span className="text-purple-300">({unlockedAchievements.length}/{ACHIEVEMENTS.length})</span></h1>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {ACHIEVEMENTS.map((a) => {
+              const unlocked = unlockedAchievements.includes(a.id);
+              return (
+                <div key={a.id} className="rounded-2xl p-4 flex items-start gap-3" style={{ background: unlocked ? "rgba(167,139,250,0.12)" : "rgba(255,255,255,0.04)", border: unlocked ? "1.5px solid rgba(167,139,250,0.4)" : "1px solid rgba(255,255,255,0.08)", opacity: unlocked ? 1 : 0.5 }}>
+                  <span className="text-3xl">{unlocked ? a.icon : "🔒"}</span>
+                  <div>
+                    <p className="text-white font-black text-sm">{lang === "de" ? a.title_de : a.title_en}</p>
+                    <p className="text-white/50 text-xs mt-0.5">{lang === "de" ? a.desc_de : a.desc_en}</p>
+                    {unlocked && <p className="text-purple-300 text-xs font-bold mt-1">✓ {t(lang, "Freigeschaltet", "Unlocked")}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="text-center py-6">
+            <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zum Menü", "To Menu")}</button>
+          </div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v7.2</span></div>
         </div>
       </div>
     );
@@ -1278,7 +1317,8 @@ export default function RegicideApp() {
     </div>
   );
 
-  const PlayerHand = ({ player, pi, small, newCardIds = new Set() }) => {
+  const PlayerHand = ({ player, pi, small }) => {
+    const handNewCardIds = newCardIds;
     const isActive = pi === game.currentPlayerIndex;
     const isDiscardTarget = phase === "discard" && isActive;
     const suggestedIds = isDiscardTarget ? getAutoDiscardSuggestion(player.hand, discardNeeded) : [];
@@ -1295,7 +1335,7 @@ export default function RegicideApp() {
         {isActive && <div className="mb-1.5"><SortBar /></div>}
         <div className={`flex gap-1.5 py-3 ${isActive?"overflow-x-auto flex-nowrap":"flex-wrap"}`}>
           {sortHand(player.hand).map((card) => (
-            <PlayingCard key={card.id} card={card} isNew={newCardIds.has(card.id)}
+            <PlayingCard key={card.id} card={card} lang={lang} isNew={handNewCardIds.has(card.id)}
               selected={selectedCards.includes(card.id) || (isDiscardTarget && suggestedIds.includes(card.id))}
               onClick={() => { if (phase==="discard"&&isActive) discardCardForDamage(card.id); else if (phase==="play"&&isActive) toggleCardSelection(card.id); }}
               disabled={!isActive||(phase!=="play"&&phase!=="discard")}
@@ -1318,7 +1358,8 @@ export default function RegicideApp() {
         </div>
       ))}
       {roundBanner && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-center pointer-events-none"
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-center cursor-pointer"
+          onClick={() => setRoundBanner(null)}
           style={{ background: "rgba(20,10,40,0.92)", backdropFilter: "blur(24px)", border: "1.5px solid rgba(251,191,36,0.5)", boxShadow: "0 0 40px rgba(251,191,36,0.25)", animation: "slideDown 0.4s ease-out" }}>
           <style>{`@keyframes slideDown{0%{opacity:0;transform:translateX(-50%) translateY(-20px)}100%{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
           <p className="text-yellow-300 font-black text-lg mb-2">👑 {roundBanner.enemy} {lang==="de"?"besiegt!":"defeated!"}</p>
@@ -1327,6 +1368,7 @@ export default function RegicideApp() {
             <div className="text-center"><div className="text-white font-black text-xl">{roundBanner.cards}</div><div className="text-white/40 text-xs">{lang==="de"?"Karten":"Cards"}</div></div>
             <div className="text-center"><div className="text-white font-black text-xl">{roundBanner.time}</div><div className="text-white/40 text-xs">{lang==="de"?"Zeit":"Time"}</div></div>
           </div>
+          <p className="text-white/30 text-xs mt-2">{lang==="de"?"Tippen zum Schließen":"Tap to close"}</p>
         </div>
       )}
       {animMsg && (
@@ -1486,7 +1528,7 @@ export default function RegicideApp() {
             {/* Timer + version */}
             <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)"}}>
               <span className="text-white/50 text-xs">⏱ {formatTime(elapsedSeconds)}</span>
-              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v7.1</span>
+              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v7.2</span>
               <button onClick={()=>setGameLayout("arena")} className={`px-2 py-1 text-xs font-bold ${glass.btn}`}>⚔️</button>
             </div>
             {/* Enemy queue */}
