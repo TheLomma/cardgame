@@ -1,4 +1,4 @@
-// v6.2 – Dashboard-Layout (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
+// v6.4 – Statistik-Übersicht im Menü (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -204,9 +204,9 @@ function DeckVisual({ count, color = "#a78bfa", label }) {
   );
 }
 
-const SHAKE_STYLE = `@keyframes enemyShake{0%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}100%{transform:translateX(0)}}`;
+const SHAKE_STYLE = `@keyframes enemyShake{0%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}100%{transform:translateX(0)}} @keyframes enemyDie{0%{opacity:1;transform:scale(1) translateY(0);filter:blur(0px) brightness(1)}40%{opacity:0.7;transform:scale(1.08) translateY(-6px);filter:blur(0px) brightness(2.5)}70%{opacity:0.3;transform:scale(0.85) translateY(8px);filter:blur(4px) brightness(0.5)}100%{opacity:0;transform:scale(0.6) translateY(20px);filter:blur(12px) brightness(0)}} @keyframes hpShake{0%,100%{box-shadow:0 0 8px currentColor}25%{box-shadow:0 0 24px #f87171,0 0 48px #f87171}75%{box-shadow:0 0 16px #fbbf24,0 0 32px #fbbf24}}`;
 
-function EnemyCard({ enemy, lang, tableCards = [], shaking = false }) {
+function EnemyCard({ enemy, lang, tableCards = [], shaking = false, dying = false }) {
   const isRed = enemy.suit === "♥" || enemy.suit === "♦";
   const hpPct = Math.max(0, Math.min(100, (enemy.currentHp / enemy.hp) * 100));
   const hpColor = hpPct > 60 ? "#4ade80" : hpPct > 30 ? "#facc15" : "#f87171";
@@ -224,7 +224,7 @@ function EnemyCard({ enemy, lang, tableCards = [], shaking = false }) {
       <style>{SHAKE_STYLE}</style>
       <style>{`@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-60px)}}`}</style>
       <div className="rounded-2xl p-3 space-y-2"
-        style={{ transition: "opacity 0.4s ease, transform 0.4s ease", opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(-12px)", background: "rgba(220,50,50,0.12)", backdropFilter: "blur(32px) saturate(180%)", border: "1.5px solid rgba(255,120,120,0.3)", boxShadow: "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35)", animation: shaking ? "enemyShake 0.45s ease" : undefined }}>
+        style={{ transition: dying ? "none" : "opacity 0.4s ease, transform 0.4s ease", opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(-12px)", background: dying ? "rgba(255,180,0,0.18)" : "rgba(220,50,50,0.12)", backdropFilter: "blur(32px) saturate(180%)", border: dying ? "1.5px solid rgba(255,200,0,0.6)" : "1.5px solid rgba(255,120,120,0.3)", boxShadow: dying ? "0 0 60px rgba(255,200,0,0.5), inset 0 2px 0 rgba(255,220,100,0.5)" : "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35)", animation: dying ? "enemyDie 0.65s ease-out forwards" : shaking ? "enemyShake 0.45s ease" : undefined }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-3xl drop-shadow">{enemy.rank}</span>
@@ -367,6 +367,7 @@ export default function RegicideApp() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [floatingNums, setFloatingNums] = useState([]);
   const [enemyShaking, setEnemyShaking] = useState(false);
+  const [enemyDying, setEnemyDying] = useState(false);
   const floatIdRef = useRef(0);
 
   const loadHighscores = () => { try { return JSON.parse(localStorage.getItem("coupdeta_hs") || "[]"); } catch { return []; } };
@@ -713,26 +714,31 @@ export default function RegicideApp() {
       let newDraw = [...g.drawPile];
       if (newHp === 0) { newDraw = [{ ...enemy }, ...newDraw]; newDiscard = [...newDiscard, ...tableCards]; addLog(t(lang, "Genau besiegt – Feind auf Nachziehstapel!", "Exact – enemy on draw pile!")); }
       else { newDiscard = [...newDiscard, ...tableCards, { ...enemy }]; addLog(t(lang, "Overkill – Karten auf Ablage.", "Overkill – cards to discard.")); }
-      if (g.enemyDeck.length === 0) {
-        sfx.victory();
-        saveHighscore({ date: new Date().toLocaleDateString(), players: numPlayers, won: true, enemies: totalStats.enemies + 1, damage: totalStats.damage + finishedStats.damage, cards: totalStats.cards + finishedStats.cards, jesters: soloJestersUsed, score: totalStats.damage + finishedStats.damage + (totalStats.enemies + 1) * 50 + (soloJestersUsed === 0 ? 100 : 0) });
-        setGame({ ...g, players, discardPile: newDiscard, drawPile: newDraw, tableCards: [], won: true });
-        setScreen("victory");
-        return;
-      }
-      const nextEnemy = { ...g.enemyDeck[0], currentHp: g.enemyDeck[0].hp };
-      const remainingEnemies = g.enemyDeck.slice(1);
-      let drawPile = [...newDraw];
-      for (let i = 0; i < numPlayers; i++) {
-        const pi = (g.currentPlayerIndex + i) % numPlayers;
-        const p = { ...players[pi] };
-        while (p.hand.length < getHandSize(numPlayers) && drawPile.length > 0) p.hand.push(drawPile.shift());
-        players[pi] = p;
-      }
-      setLastYielded([]);
-      const newState = { ...g, players, drawPile, discardPile: newDiscard, enemyDeck: remainingEnemies, currentEnemy: nextEnemy, tableCards: [] };
-      if (!checkCanActAndTriggerLose(newState, g.currentPlayerIndex, [])) setGame(newState);
-      setPhase("play");
+      // ── Auflöse-Animation: erst dying=true, dann nach 650ms weiter ──
+      setEnemyDying(true);
+      setTimeout(() => {
+        setEnemyDying(false);
+        if (g.enemyDeck.length === 0) {
+          sfx.victory();
+          saveHighscore({ date: new Date().toLocaleDateString(), players: numPlayers, won: true, enemies: totalStats.enemies + 1, damage: totalStats.damage + finishedStats.damage, cards: totalStats.cards + finishedStats.cards, jesters: soloJestersUsed, score: totalStats.damage + finishedStats.damage + (totalStats.enemies + 1) * 50 + (soloJestersUsed === 0 ? 100 : 0) });
+          setGame({ ...g, players, discardPile: newDiscard, drawPile: newDraw, tableCards: [], won: true });
+          setScreen("victory");
+          return;
+        }
+        const nextEnemy = { ...g.enemyDeck[0], currentHp: g.enemyDeck[0].hp };
+        const remainingEnemies = g.enemyDeck.slice(1);
+        let drawPile = [...newDraw];
+        for (let i = 0; i < numPlayers; i++) {
+          const pi = (g.currentPlayerIndex + i) % numPlayers;
+          const p = { ...players[pi] };
+          while (p.hand.length < getHandSize(numPlayers) && drawPile.length > 0) p.hand.push(drawPile.shift());
+          players[pi] = p;
+        }
+        setLastYielded([]);
+        const newState = { ...g, players, drawPile, discardPile: newDiscard, enemyDeck: remainingEnemies, currentEnemy: nextEnemy, tableCards: [] };
+        if (!checkCanActAndTriggerLose(newState, g.currentPlayerIndex, [])) setGame(newState);
+        setPhase("play");
+      }, 650);
     } else {
       enemy.currentHp = newHp;
       const incomingDamage = enemy.attack;
@@ -858,7 +864,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.2</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.4</span></div>
         </div>
       </div>
     );
@@ -890,7 +896,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zum Menü ⚔️", "To Menu ⚔️")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.2</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.4</span></div>
         </div>
       </div>
     );
@@ -949,7 +955,7 @@ export default function RegicideApp() {
           <button onClick={() => setScreen("rules")} className={`w-full py-2.5 ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
           <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
         </div>
-        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.2</span></div>
+        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.4</span></div>
       </div>
     );
   }
@@ -989,7 +995,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-6 py-2.5 font-bold ${glass.btn}`}>{t(lang,"Hauptmenü","Main Menu")}</button>
             <button onClick={initGame} className={`px-8 py-2.5 font-bold ${glass.btnPrimary}`}>{t(lang,"Nochmal spielen","Play Again")}</button>
           </div>
-          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.2</span></div>
+          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.4</span></div>
         </div>
       </div>
     );
@@ -1304,7 +1310,7 @@ export default function RegicideApp() {
             {/* Timer + version */}
             <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)"}}>
               <span className="text-white/50 text-xs">⏱ {formatTime(elapsedSeconds)}</span>
-              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.2</span>
+              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.4</span>
               <button onClick={()=>setGameLayout("arena")} className={`px-2 py-1 text-xs font-bold ${glass.btn}`}>⚔️</button>
             </div>
             {/* Enemy queue */}
@@ -1404,7 +1410,7 @@ export default function RegicideApp() {
             <button onClick={()=>setLastRoundStats(null)} className="ml-auto text-white/30 hover:text-white/60 text-xs">×</button>
           </div>
         )}
-        <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} shaking={enemyShaking} />
+        <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} shaking={enemyShaking} dying={enemyDying} />
         <ActionBar />
         <ComboPreview />
         <PlayerTurnBanner game={game} lang={lang} phase={phase} numPlayers={numPlayers} lastYielded={lastYielded} />
