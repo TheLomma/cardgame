@@ -106,53 +106,8 @@ function getHandSize(numPlayers) {
 }
 
 const t = (lang, de, en) => (lang === "de" ? de : en);
+// __SPLIT__
 
-function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
-  if (!game || numPlayers < 1) return null;
-  const activeIdx = game.currentPlayerIndex;
-  const phaseColor = phase === "discard" ? "#f87171" : phase === "jester" ? "#c084fc" : "#4ade80";
-  const phaseLabel = phase === "discard"
-    ? (lang === "de" ? "⚠️ Schaden abwerfen" : "⚠️ Discard damage")
-    : phase === "jester"
-    ? (lang === "de" ? "🃏 Nächsten Spieler wählen" : "🃏 Choose next player")
-    : (lang === "de" ? "🎮 Am Zug" : "🎮 Active");
-  return (
-    <div className="w-full rounded-2xl px-3 py-2 mb-2" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)" }}>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: phaseColor }}>{phaseLabel}</span>
-        {numPlayers > 1 && <span className="text-white/30 text-xs">{lang === "de" ? `Runde: Spieler ${activeIdx + 1}` : `Turn: Player ${activeIdx + 1}`}</span>}
-      </div>
-      {numPlayers > 1 && (
-        <div className="flex gap-2 flex-wrap">
-          {game.players.map((player, pi) => {
-            const isActive = pi === activeIdx;
-            const hasYielded = (lastYielded || []).includes(pi);
-            const isDiscard = phase === "discard" && isActive;
-            return (
-              <div key={pi} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl" style={{ background: isDiscard ? "rgba(239,68,68,0.25)" : isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.06)", border: isDiscard ? "1.5px solid rgba(239,68,68,0.7)" : isActive ? "1.5px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.12)", transform: isActive ? "scale(1.05)" : "scale(1)", opacity: hasYielded && !isActive ? 0.5 : 1 }}>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black" style={{ background: isActive ? "#fff" : "rgba(255,255,255,0.15)", color: isActive ? "#111" : "rgba(255,255,255,0.5)" }}>{pi + 1}</span>
-                <span className="text-xs font-bold" style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.4)" }}>{player.name}</span>
-                {isActive && <span style={{ color: phaseColor }}>▶</span>}
-                {hasYielded && !isActive && <span className="text-white/30 text-xs">✓</span>}
-                <span className="text-white/30 text-xs">({player.hand.length})</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {numPlayers === 1 && (
-        <div className="flex items-center gap-2">
-          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black" style={{ background: "#fff", color: "#111" }}>1</span>
-          <span className="text-white font-bold text-sm">{game.players[0].name}</span>
-          <span style={{ color: phaseColor }}>▶ {phaseLabel}</span>
-          <span className="ml-auto text-white/30 text-xs">{game.players[0].hand.length} {lang === "de" ? "Karten" : "cards"}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// === FEATURE 1: Spieler-Rundenübersicht Banner – DUPE ===
 function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
   if (!game || numPlayers < 1) return null;
   const activeIdx = game.currentPlayerIndex;
@@ -197,7 +152,6 @@ function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
     </div>
   );
 }
-// === END FEATURE 1 ===
 
 function PlayingCard({ card, selected, onClick, disabled, small = false }) {
   const [hovered, setHovered] = useState(false);
@@ -858,16 +812,17 @@ export default function RegicideApp() {
       newPlayers[game.currentPlayerIndex] = currP;
       const nextAfterDiscard = game._nextPlayerAfterDiscard ?? (game.currentPlayerIndex + 1) % numPlayers;
       let drawPile2 = [...game.drawPile];
+      let mutableNewDiscard = [...newDiscard];
       if (drawPile2.length === 0 && game.discardPile.length > 0) {
-        drawPile2 = shuffle([...newDiscard]);
-        newDiscard = [];
+        drawPile2 = shuffle([...mutableNewDiscard]);
+        mutableNewDiscard = [];
         addLog(t(lang, "🔄 Nachziehstapel leer – Ablage gemischt!", "🔄 Draw pile empty – discard reshuffled!"));
       }
       while (newPlayers[game.currentPlayerIndex].hand.length < getHandSize(numPlayers) && drawPile2.length > 0) {
         newPlayers[game.currentPlayerIndex] = { ...newPlayers[game.currentPlayerIndex], hand: [...newPlayers[game.currentPlayerIndex].hand, drawPile2.shift()] };
       }
       addLog(t(lang, "✅ Schaden bezahlt! Nächster Spieler.", "✅ Damage paid! Next player."));
-      const stateAfterDiscard = { ...game, players: newPlayers, discardPile: newDiscard, drawPile: drawPile2, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
+      const stateAfterDiscard = { ...game, players: newPlayers, discardPile: mutableNewDiscard, drawPile: drawPile2, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
       if (!checkCanActAndTriggerLose(stateAfterDiscard, nextAfterDiscard, lastYielded)) {
         setGame(stateAfterDiscard);
       }
@@ -1159,111 +1114,6 @@ export default function RegicideApp() {
     }
     return false;
   };
-
-  if (screen === "game" && game) {
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    const selectedCardObjs = selectedCards.map((id) => currentPlayer.hand.find((c) => c.id === id)).filter(Boolean);
-    const attackValue = calcAttack(selectedCardObjs, game.currentEnemy);
-    const enemiesLeft = game.enemyDeck.length + 1;
-
-    return (
-      <div className="min-h-screen p-2 md:p-4 relative overflow-hidden" style={{ background: (CARD_THEMES[theme]||CARD_THEMES.fantasy).bg }}>
-        <PauseOverlay />
-        <div className="max-w-5xl mx-auto space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
-              <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>← {t(lang,"Menü","Menu")}</button>
-              <button onClick={() => setPaused(true)} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>⏸ {t(lang,"Pause","Pause")}</button>
-            </div>
-            <div className="flex gap-2 text-xs flex-wrap justify-center">
-              <span className="text-white/90 font-semibold">👑 <span className="text-yellow-300 font-black">{enemiesLeft}</span></span>
-              <span className="text-white/90 font-semibold">🃏 <span className="text-blue-200 font-black">{game.drawPile.length}</span></span>
-              <span className="text-white/90 font-semibold">🗑 <span className="text-orange-200 font-black">{game.discardPile.length}</span></span>
-            </div>
-            <div className="text-white/70 text-xs font-bold uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-lg">{phase}</div>
-          </div>
-          <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} shaking={enemyShaking} />
-          <div className="p-2 md:p-3 rounded-xl" style={{background:"rgba(26,26,60,0.4)",backdropFilter:"blur(32px) saturate(180%)",border:"1.5px solid rgba(201,168,76,0.35)",borderRadius:16,boxShadow:"0 8px 40px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,220,100,0.15), inset 0 -1px 0 rgba(0,0,0,0.15)"}}>
-            <div className="flex items-center gap-2 flex-wrap">
-              {phase==="jester" && (
-                <div className="flex-1 px-3 py-2 rounded-xl" style={{background:"rgba(168,85,247,0.15)",backdropFilter:"blur(20px)",border:"1.5px solid rgba(168,85,247,0.35)",boxShadow:"inset 0 1.5px 0 rgba(220,180,255,0.25), 0 4px 20px rgba(168,85,247,0.15)"}}>
-                  <p className="text-purple-200 font-bold text-sm">🃏 {t(lang,"Jester! Wähle nächsten Spieler:","Jester! Choose next player:")}</p>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    {game.players.map((_,pi)=>(<button key={pi} onClick={()=>chooseNextPlayer(pi)} className={`px-3 py-1 text-white/90 text-sm font-bold rounded-lg ${glass.btnPurple}`}>{t(lang,`Spieler ${pi+1}`,`Player ${pi+1}`)}</button>))}
-                  </div>
-                </div>
-              )}
-              {phase==="discard" && (
-                <div className="flex-1 px-3 py-2 rounded-xl" style={{background:"rgba(239,68,68,0.15)",border:"1px solid rgba(239,68,68,0.35)"}}>
-                  <p className="text-red-300 font-bold text-sm">⚠️ {t(lang,"Schaden abdecken!","Cover damage!")}</p>
-                  <p className="text-white/70 text-xs">{t(lang,`Noch ${Math.ceil(discardNeeded)} Schaden zu decken`,`Still ${Math.ceil(discardNeeded)} damage to cover`)}</p>
-                </div>
-              )}
-              {phase==="play" && selectedCards.length>0 && (
-                <div className="text-sm text-white/70">
-                  {selectedCards.length} {t(lang,"Karte(n)","card(s)")} · <span className="text-white font-bold">⚔️ {attackValue}</span>
-                </div>
-              )}
-              <div className="flex gap-2 ml-auto flex-wrap">
-                {phase==="play" && selectedCards.length>0 && (<button onClick={()=>setSelectedCards([])} className={`px-3 py-2 text-white/80 text-sm ${glass.btn}`}>{t(lang,"Abwählen","Deselect")} <kbd className="opacity-40 text-xs">Esc</kbd></button>)}
-                {numPlayers===1&&soloJestersAvail>0&&phase==="play" && (<button onClick={()=>soloFlipJester("step1")} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}>🃏 {t(lang,`Jester (${soloJestersAvail}x)`,`Jester (${soloJestersAvail}x)`)}</button>)}
-                {numPlayers===1&&soloJestersAvail>0&&phase==="discard" && (<button onClick={()=>soloFlipJester("step4")} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}>🃏 {t(lang,`Jester tauschen (${soloJestersAvail}x)`,`Jester swap (${soloJestersAvail}x)`)}</button>)}
-                {phase==="play" && (<><button onClick={yieldTurn} className={`px-4 py-2 font-bold text-sm ${glass.btn}`}>{t(lang,"Passen","Yield")} <kbd className="opacity-40 text-xs ml-1">Y</kbd></button><button onClick={playCards} disabled={selectedCards.length===0} className={`px-6 py-2 font-bold text-sm rounded-xl transition-all ${selectedCards.length>0?glass.btnPrimary:"opacity-30 cursor-not-allowed bg-white/10 text-white/30 border border-white/10 rounded-xl"}`}>⚔️ {t(lang,"Spielen","Play")} <kbd className="opacity-40 text-xs ml-1">↵</kbd></button></>)}
-                {phase==="discard" && (<span className="text-red-300 text-sm font-bold animate-pulse">👆 {t(lang,"Karte anklicken","Click a card")}</span>)}
-              </div>
-            </div>
-          </div>
-          {/* Schritt 17 – Mobile: Shortcut-Bar nur auf md+ */}
-          {phase==="play"&&(<div className="hidden md:flex gap-1.5 flex-wrap px-1 items-center" style={{opacity:0.38}}>{currentPlayer.hand.slice(0,8).map((_,i)=>(<kbd key={i} className="text-xs font-mono px-1.5 py-0.5 rounded text-white bg-white/10">{i+1}</kbd>))}<span className="text-xs ml-1 text-white/50">· {t(lang,"wählen","select")}</span><span className="mx-2 text-white/20">|</span><kbd className="text-xs font-mono px-1.5 py-0.5 rounded text-white bg-white/10">↵</kbd><span className="text-xs text-white/50">{t(lang,"spielen","play")}</span><kbd className="text-xs font-mono px-1.5 py-0.5 rounded text-white bg-white/10">Y</kbd><span className="text-xs text-white/50">{t(lang,"passen","yield")}</span><kbd className="text-xs font-mono px-1.5 py-0.5 rounded text-white bg-white/10">P</kbd><span className="text-xs text-white/50">{t(lang,"pause","pause")}</span></div>)}
-          <div className="space-y-2">
-            {game.players.map((player,pi)=>{
-              const isActive=pi===game.currentPlayerIndex;
-              const isDiscardTarget=phase==="discard"&&isActive;
-              const suggestedIds=isDiscardTarget?getAutoDiscardSuggestion(player.hand,discardNeeded):[];
-              return(
-                <div key={pi} className="rounded-2xl p-2 md:p-3 transition-all" style={{background:isDiscardTarget?"rgba(239,68,68,0.18)":isActive?"rgba(255,255,255,0.12)":"rgba(255,255,255,0.05)",backdropFilter:"blur(20px)",border:isDiscardTarget?"2px solid rgba(239,68,68,0.6)":isActive?"1px solid rgba(255,255,255,0.4)":"1px solid rgba(255,255,255,0.1)"}}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive?"bg-white/90 text-gray-900":"bg-white/15 text-white"}`}>{pi+1}</span>
-                      <span className={`font-bold text-sm ${isActive?"text-white":"text-white/50"}`}>{player.name}{isActive?` (${t(lang,"am Zug","active")})`:""}</span>
-                    </div>
-                    <span className="text-white/40 text-xs">{player.hand.length} {t(lang,"Karten","cards")}</span>
-                    {isDiscardTarget&&<span className="text-red-300 text-xs font-black animate-pulse">⚠️ {t(lang,"Abwerfen!","Discard!")}</span>}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-1">
-                    {player.hand.map((card,cardIdx)=>(
-                      <div key={card.id} className="relative">
-                        {isActive&&phase==="play"&&cardIdx<8&&(<span className="absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-white/40 font-black pointer-events-none" style={{fontSize:9}}>{cardIdx+1}</span>)}
-                        <PlayingCard card={card} selected={selectedCards.includes(card.id)||(isDiscardTarget&&suggestedIds.includes(card.id))} onClick={()=>{if(phase==="discard"&&isActive)discardCardForDamage(card.id);else if(phase==="play"&&isActive)toggleCardSelection(card.id);}} disabled={!isActive||(phase!=="play"&&phase!=="discard")} small={!isActive} />
-                      </div>
-                    ))}
-                    {player.hand.length===0&&<span className="text-white/30 text-sm italic">{t(lang,"Keine Karten","No cards")}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          {/* Schritt 15 – Animierter Log */}
-          <div className="rounded-lg p-3 max-h-32 overflow-y-auto" style={{background:"rgba(0,0,0,0.5)",border:"1px solid rgba(201,168,76,0.2)"}}>
-          <p className="text-xs mb-1 font-bold tracking-widest uppercase" style={{color:"rgba(201,168,76,0.7)"}}>{t(lang,"Log","Log")}</p>
-            {log.map((entry,i)=>{
-              const isDefeat=entry.includes("besiegt")||entry.includes("defeated");
-              const isAttack=entry.includes("⚔")||entry.includes("👿");
-              const isHeal=entry.includes("♥");
-              const isDraw=entry.includes("♦");
-              const isDiscard=entry.includes("🗑");
-              const color = isDefeat ? "text-yellow-300" : isAttack ? "text-red-300" : isHeal ? "text-emerald-300" : isDraw ? "text-blue-300" : isDiscard ? "text-orange-300" : "text-white/60";
-              const isNew = i === 0 && newLogIdx === 0;
-              return <p key={entry+i} className={`text-xs leading-tight ${color} ${i===0?"font-bold":"opacity-70"}`}
-                style={{ transition: "opacity 0.3s, transform 0.3s", opacity: isNew ? 1 : undefined, animation: isNew ? "logSlideIn 0.35s ease" : undefined }}>{entry}</p>;
-            })}
-          </div>
-          <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.9</span></div>
-        </div>
-      </div>
-    );
-  }
 
   if (screen === "highscores") {
     const scores = loadHighscores();
