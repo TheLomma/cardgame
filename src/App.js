@@ -1,4 +1,4 @@
-// v6.7 – Feature 1: Rundenübersicht-Banner (ausgebaut) nach jedem besiegten Feind (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
+// v6.9
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -143,7 +143,7 @@ function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
   );
 }
 
-function PlayingCard({ card, selected, onClick, disabled, small = false }) {
+function PlayingCard({ card, selected, onClick, disabled, small = false, isNew = false }) {
   const [hovered, setHovered] = useState(false);
   const isRed = card.suit === "♥" || card.suit === "♦";
   const isJester = card.type === "jester";
@@ -156,7 +156,7 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
     return (
       <div onClick={!disabled ? onClick : undefined}
         className={`relative cursor-pointer select-none transition-all duration-200 rounded-xl w-12 h-16 flex flex-col items-center justify-center ${selected ? "ring-2 ring-white -translate-y-2 shadow-lg" : disabled ? "opacity-40 cursor-not-allowed" : "hover:-translate-y-1"}`}
-        style={{ background: selected ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)", border: `1px solid ${borderColor}`, backdropFilter: "blur(12px)" }}>
+        style={{ background: selected ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)", border: `1px solid ${borderColor}`, backdropFilter: "blur(12px)", animation: isNew ? "cardSlideIn 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards, cardGlow 0.6s ease-out 0.2s" : undefined }}>
         <span className={`text-xs font-black ${color}`}>{card.rank}</span>
         <span className={`text-base ${color}`}>{card.suit}</span>
       </div>
@@ -204,6 +204,8 @@ function DeckVisual({ count, color = "#a78bfa", label }) {
   );
 }
 
+const CARD_ANIM_STYLE = `@keyframes cardSlideIn{0%{opacity:0;transform:translateY(32px) scale(0.85)}60%{opacity:1;transform:translateY(-4px) scale(1.04)}100%{opacity:1;transform:translateY(0) scale(1)}} @keyframes cardGlow{0%{box-shadow:0 0 0 0 rgba(167,139,250,0.7)}50%{box-shadow:0 0 18px 6px rgba(167,139,250,0.45)}100%{box-shadow:0 0 0 0 rgba(167,139,250,0)}}`;
+
 const SHAKE_STYLE = `@keyframes enemyShake{0%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}100%{transform:translateX(0)}} @keyframes enemyDie{0%{opacity:1;transform:scale(1) translateY(0);filter:blur(0px) brightness(1)}40%{opacity:0.7;transform:scale(1.08) translateY(-6px);filter:blur(0px) brightness(2.5)}70%{opacity:0.3;transform:scale(0.85) translateY(8px);filter:blur(4px) brightness(0.5)}100%{opacity:0;transform:scale(0.6) translateY(20px);filter:blur(12px) brightness(0)}} @keyframes hpShake{0%,100%{box-shadow:0 0 8px currentColor}25%{box-shadow:0 0 24px #f87171,0 0 48px #f87171}75%{box-shadow:0 0 16px #fbbf24,0 0 32px #fbbf24}}`;
 
 function EnemyCard({ enemy, lang, tableCards = [], shaking = false, dying = false, damageByPlayer = {}, players = [] }) {
@@ -221,7 +223,7 @@ function EnemyCard({ enemy, lang, tableCards = [], shaking = false, dying = fals
 
   return (
     <div className="relative">
-      <style>{SHAKE_STYLE}</style>
+      <style>{CARD_ANIM_STYLE + SHAKE_STYLE}</style>
       <style>{`@keyframes floatUp{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-60px)}}`}</style>
       <div className="rounded-2xl p-3 space-y-2"
         style={{ transition: dying ? "none" : "opacity 0.4s ease, transform 0.4s ease", opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(-12px)", background: dying ? "rgba(255,180,0,0.18)" : "rgba(220,50,50,0.12)", backdropFilter: "blur(32px) saturate(180%)", border: dying ? "1.5px solid rgba(255,200,0,0.6)" : "1.5px solid rgba(255,120,120,0.3)", boxShadow: dying ? "0 0 60px rgba(255,200,0,0.5), inset 0 2px 0 rgba(255,220,100,0.5)" : "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35)", animation: dying ? "enemyDie 0.65s ease-out forwards" : shaking ? "enemyShake 0.45s ease" : undefined }}>
@@ -394,6 +396,7 @@ export default function RegicideApp() {
   const [floatingNums, setFloatingNums] = useState([]);
   const [handSort, setHandSort] = useState("default");
   const [enemyShaking, setEnemyShaking] = useState(false);
+  const [newCardIds, setNewCardIds] = useState(new Set());
   const [enemyDying, setEnemyDying] = useState(false);
   const floatIdRef = useRef(0);
 
@@ -407,6 +410,11 @@ export default function RegicideApp() {
     const id = floatIdRef.current++;
     setFloatingNums(prev => [...prev, { id, text, color, size, x: 40 + Math.random() * 20 }]);
     setTimeout(() => setFloatingNums(prev => prev.filter(f => f.id !== id)), 1400);
+  };
+
+  const markNewCards = (cardIds) => {
+    setNewCardIds(new Set(cardIds));
+    setTimeout(() => setNewCardIds(new Set()), 700);
   };
 
   const triggerEnemyHit = () => {
@@ -570,6 +578,7 @@ export default function RegicideApp() {
         player.hand = [...player.hand, ...drawnCards];
         drawn += drawnCards.length;
         newPlayers[pi] = player;
+        markNewCards(drawnCards.map(c => c.id));
       }
     }
     if (drawn > 0) { sfx.draw(); spawnFloat(`+${drawn} ♦`, "#60a5fa", "text-3xl"); }
@@ -671,9 +680,11 @@ export default function RegicideApp() {
         mutableNewDiscard = [];
         addLog(t(lang, "🔄 Nachziehstapel leer – Ablage gemischt!", "🔄 Draw pile empty – discard reshuffled!"));
       }
+      const prevDiscardLen = newPlayers[game.currentPlayerIndex].hand.length;
       while (newPlayers[game.currentPlayerIndex].hand.length < getHandSize(numPlayers) && drawPile2.length > 0) {
         newPlayers[game.currentPlayerIndex] = { ...newPlayers[game.currentPlayerIndex], hand: [...newPlayers[game.currentPlayerIndex].hand, drawPile2.shift()] };
       }
+      markNewCards(newPlayers[game.currentPlayerIndex].hand.slice(prevDiscardLen).map(c => c.id));
       addLog(t(lang, "✅ Schaden bezahlt! Nächster Spieler.", "✅ Damage paid! Next player."));
       const stateAfterDiscard = { ...game, players: newPlayers, discardPile: mutableNewDiscard, drawPile: drawPile2, currentPlayerIndex: nextAfterDiscard, _nextPlayerAfterDiscard: undefined };
       if (!checkCanActAndTriggerLose(stateAfterDiscard, nextAfterDiscard, lastYielded)) setGame(stateAfterDiscard);
@@ -781,7 +792,9 @@ export default function RegicideApp() {
       if (incomingDamage <= 0) {
         let drawPile = [...g.drawPile];
         const currP = { ...players[g.currentPlayerIndex] };
+        const prevLen = currP.hand.length;
         while (currP.hand.length < getHandSize(numPlayers) && drawPile.length > 0) currP.hand.push(drawPile.shift());
+        markNewCards(currP.hand.slice(prevLen).map(c => c.id));
         players[g.currentPlayerIndex] = currP;
         const stateNoAttack = { ...g, players, drawPile, currentEnemy: enemy, currentPlayerIndex: nextPlayerIndex, tableCards };
         if (!checkCanActAndTriggerLose(stateNoAttack, nextPlayerIndex, lastYielded)) setGame(stateNoAttack);
@@ -899,7 +912,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.9</span></div>
         </div>
       </div>
     );
@@ -931,7 +944,7 @@ export default function RegicideApp() {
           <div className="text-center py-6">
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zum Menü ⚔️", "To Menu ⚔️")}</button>
           </div>
-          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
+          <div className="text-center pb-4"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.9</span></div>
         </div>
       </div>
     );
@@ -990,7 +1003,7 @@ export default function RegicideApp() {
           <button onClick={() => setScreen("rules")} className={`w-full py-2.5 ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
           <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
         </div>
-        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.7</span></div>
+        <div className="text-center py-3"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.9</span></div>
       </div>
     );
   }
@@ -1030,7 +1043,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); setGame(null); }} className={`px-6 py-2.5 font-bold ${glass.btn}`}>{t(lang,"Hauptmenü","Main Menu")}</button>
             <button onClick={initGame} className={`px-8 py-2.5 font-bold ${glass.btnPrimary}`}>{t(lang,"Nochmal spielen","Play Again")}</button>
           </div>
-          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.7</span></div>
+          <div className="text-center"><span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.9</span></div>
         </div>
       </div>
     );
@@ -1178,7 +1191,7 @@ export default function RegicideApp() {
     </div>
   );
 
-  const PlayerHand = ({ player, pi, small }) => {
+  const PlayerHand = ({ player, pi, small, newCardIds = new Set() }) => {
     const isActive = pi === game.currentPlayerIndex;
     const isDiscardTarget = phase === "discard" && isActive;
     const suggestedIds = isDiscardTarget ? getAutoDiscardSuggestion(player.hand, discardNeeded) : [];
@@ -1195,7 +1208,7 @@ export default function RegicideApp() {
         {isActive && <div className="mb-1.5"><SortBar /></div>}
         <div className={`flex gap-1.5 py-3 ${isActive?"overflow-x-auto flex-nowrap":"flex-wrap"}`}>
           {sortHand(player.hand).map((card) => (
-            <PlayingCard key={card.id} card={card}
+            <PlayingCard key={card.id} card={card} isNew={newCardIds.has(card.id)}
               selected={selectedCards.includes(card.id) || (isDiscardTarget && suggestedIds.includes(card.id))}
               onClick={() => { if (phase==="discard"&&isActive) discardCardForDamage(card.id); else if (phase==="play"&&isActive) toggleCardSelection(card.id); }}
               disabled={!isActive||(phase!=="play"&&phase!=="discard")}
@@ -1386,7 +1399,7 @@ export default function RegicideApp() {
             {/* Timer + version */}
             <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)"}}>
               <span className="text-white/50 text-xs">⏱ {formatTime(elapsedSeconds)}</span>
-              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.7</span>
+              <span className="font-mono bg-white text-gray-900 px-1.5 py-0.5 rounded font-black text-xs">v6.9</span>
               <button onClick={()=>setGameLayout("arena")} className={`px-2 py-1 text-xs font-bold ${glass.btn}`}>⚔️</button>
             </div>
             {/* Enemy queue */}
