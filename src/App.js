@@ -1,4 +1,4 @@
-// v5.4 – Regicide-Design-Übernahme – Schritte 11,12,14,15,17
+// v5.6 – Liquid Glass Design + Lesbarkeit
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -127,7 +127,7 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
     <div className="relative" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       {hovered && !small && (
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-48 p-2 rounded-xl text-xs text-white/90 pointer-events-none"
-          style={{ background: "rgba(10,10,30,0.95)", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(20px)" }}>
+          style={{ background: "rgba(10,10,30,0.7)", border: "1px solid rgba(255,255,255,0.25)", backdropFilter: "blur(40px) saturate(180%)" }}>
           {tooltipContent}
         </div>
       )}
@@ -172,7 +172,7 @@ function DeckVisual({ count, color = "#a78bfa", label }) {
               width: 28, height: 40,
               left: i * 1.5,
               top: i * -1.5,
-              background: `rgba(255,255,255,0.10)`,
+              background: `rgba(255,255,255,0.08)`,
               border: `1px solid ${color}55`,
               boxShadow: i === shown - 1 ? `0 0 6px ${color}66` : undefined,
             }}
@@ -210,7 +210,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
         transition: "opacity 0.4s ease, transform 0.4s ease",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(-12px)",
-      }} style={{ background: "rgba(180,30,30,0.18)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,100,100,0.25)", boxShadow: "0 8px 32px rgba(220,50,50,0.15), inset 0 1px 0 rgba(255,150,150,0.15)" }}>
+      }} style={{ background: "rgba(220,50,50,0.12)", backdropFilter: "blur(32px) saturate(180%)", border: "1.5px solid rgba(255,120,120,0.3)", boxShadow: "0 12px 48px rgba(220,50,50,0.2), inset 0 2px 0 rgba(255,180,180,0.35), inset 0 -1px 0 rgba(0,0,0,0.15)" }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-3xl drop-shadow">{enemy.rank}</span>
@@ -236,7 +236,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
           <span>HP</span>
           <span className="text-white font-bold">{enemy.currentHp} / {enemy.hp}</span>
         </div>
-        <div className="w-full rounded-full h-2" style={{ background: "rgba(255,255,255,0.1)" }}>
+        <div className="w-full rounded-full h-2" style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
           <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${hpPct}%`, background: hpColor, boxShadow: `0 0 8px ${hpColor}` }} />
         </div>
       </div>
@@ -254,7 +254,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
             <span>🗡 {lang === "de" ? "Tisch-Schaden" : "Table Damage"}</span>
             <span>{cumulativeDamage} / {enemy.hp}</span>
           </div>
-          <div className="w-full rounded-full h-1.5" style={{ background: "rgba(255,255,255,0.07)" }}>
+          <div className="w-full rounded-full h-1.5" style={{ background: "rgba(255,255,255,0.06)" }}>
             <div className="h-1.5 rounded-full transition-all duration-500" style={{ width: `${damagePct}%`, background: "#fb923c", boxShadow: "0 0 6px #fb923c" }} />
           </div>
         </div>
@@ -343,10 +343,13 @@ export default function RegicideApp() {
   };
   const [theme, setTheme] = useState("fantasy");
   const glass = {
-    btn: "backdrop-blur-md bg-white/20 border border-white/40 hover:bg-white/30 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] rounded-xl transition-all duration-200",
-    btnPrimary: "backdrop-blur-md bg-white border border-white/80 hover:bg-white/90 text-gray-900 font-black shadow-[0_4px_20px_rgba(255,255,255,0.35),inset_0_1px_0_rgba(255,255,255,0.9)] rounded-xl transition-all duration-200 hover:scale-105",
-    btnDanger: "backdrop-blur-md bg-red-600/50 border border-red-400/60 hover:bg-red-600/70 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,120,120,0.4)] rounded-xl transition-all duration-200",
-    btnPurple: "backdrop-blur-md bg-purple-600/50 border border-purple-400/60 hover:bg-purple-600/70 text-white font-semibold shadow-[inset_0_1px_0_rgba(200,120,255,0.4)] rounded-xl transition-all duration-200",
+    // Liquid Glass – stark transluzent, starker Blur, lebendige Innen-Highlights
+    btn: "backdrop-blur-2xl bg-white/10 border border-white/30 hover:bg-white/20 text-white font-semibold rounded-2xl transition-all duration-300 shadow-[0_4px_24px_rgba(0,0,0,0.25),inset_0_1.5px_0_rgba(255,255,255,0.45),inset_0_-1px_0_rgba(0,0,0,0.15)] hover:shadow-[0_6px_32px_rgba(0,0,0,0.3),inset_0_1.5px_0_rgba(255,255,255,0.55)]",
+    btnPrimary: "backdrop-blur-2xl bg-white/25 border border-white/60 hover:bg-white/35 text-white font-black rounded-2xl transition-all duration-300 shadow-[0_8px_32px_rgba(255,255,255,0.15),inset_0_2px_0_rgba(255,255,255,0.7),inset_0_-1px_0_rgba(0,0,0,0.1)] hover:scale-105 hover:shadow-[0_12px_40px_rgba(255,255,255,0.25),inset_0_2px_0_rgba(255,255,255,0.8)]",
+    btnDanger: "backdrop-blur-2xl bg-red-500/20 border border-red-400/40 hover:bg-red-500/30 text-white font-semibold rounded-2xl transition-all duration-300 shadow-[0_4px_24px_rgba(239,68,68,0.2),inset_0_1.5px_0_rgba(255,150,150,0.4),inset_0_-1px_0_rgba(0,0,0,0.1)]",
+    btnPurple: "backdrop-blur-2xl bg-purple-500/20 border border-purple-400/40 hover:bg-purple-500/30 text-white font-semibold rounded-2xl transition-all duration-300 shadow-[0_4px_24px_rgba(168,85,247,0.2),inset_0_1.5px_0_rgba(200,150,255,0.4),inset_0_-1px_0_rgba(0,0,0,0.1)]",
+    panel: "backdrop-blur-2xl bg-white/8 border border-white/20 rounded-3xl shadow-[0_8px_40px_rgba(0,0,0,0.35),inset_0_1.5px_0_rgba(255,255,255,0.25),inset_0_-1px_0_rgba(0,0,0,0.15)]",
+    card: "backdrop-blur-xl bg-white/10 border border-white/25 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(0,0,0,0.1)]",
   };
   // Schritt 15 – Log-Animationen: neue Einträge tracken
   const [newLogIdx, setNewLogIdx] = useState(-1);
@@ -901,7 +904,7 @@ export default function RegicideApp() {
       style={{background:"rgba(0,0,0,0.75)",backdropFilter:"blur(12px)"}}
       onClick={(e)=>{if(e.target===e.currentTarget)setPaused(false);}}>
       <div className="w-full max-w-md rounded-3xl p-6 space-y-4"
-        style={{background:"rgba(15,12,41,0.97)",border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
+        style={{background:"rgba(15,12,41,0.55)",backdropFilter:"blur(48px) saturate(200%)",border:"1.5px solid rgba(255,255,255,0.22)",boxShadow:"0 32px 80px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.2)"}}>
         <div className="text-center">
           <div className="text-4xl mb-1">⏸</div>
           <h2 className="text-2xl font-black text-white">{t(lang,"Pause","Paused")}</h2>
@@ -917,7 +920,7 @@ export default function RegicideApp() {
             {icon:"🗑",labelDe:"Ablage",labelEn:"Discard",value:game.discardPile.length,color:"#fb923c"},
           ].map((s,i)=>(
             <div key={i} className="rounded-xl p-3 flex items-center gap-3"
-              style={{background:"rgba(255,255,255,0.06)",border:`1px solid ${s.color}22`}}>
+              style={{background:"rgba(255,255,255,0.07)",backdropFilter:"blur(16px)",border:`1px solid ${s.color}33`,boxShadow:`inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 16px rgba(0,0,0,0.2)`}}>
               <span className="text-xl">{s.icon}</span>
               <div>
                 <div className="font-black text-lg leading-none" style={{color:s.color}}>{s.value}</div>
@@ -927,7 +930,7 @@ export default function RegicideApp() {
           ))}
         </div>}
         {game && <div className="rounded-xl px-4 py-3 flex items-center gap-3"
-          style={{background:"rgba(220,50,50,0.12)",border:"1px solid rgba(220,50,50,0.25)"}}>
+          style={{background:"rgba(220,50,50,0.15)",backdropFilter:"blur(20px)",border:"1.5px solid rgba(255,100,100,0.3)",boxShadow:"inset 0 1.5px 0 rgba(255,150,150,0.25), 0 4px 20px rgba(220,50,50,0.15)"}}>
           <span className="text-2xl">{game.currentEnemy.rank}{game.currentEnemy.suit}</span>
           <div className="flex-1">
             <div className="text-white font-bold text-sm">{lang==="de"?(game.currentEnemy.rank==="J"?"Bube":game.currentEnemy.rank==="Q"?"Dame":"König"):(game.currentEnemy.rank==="J"?"Jack":game.currentEnemy.rank==="Q"?"Queen":"King")} · ⚔️ {game.currentEnemy.attack}</div>
@@ -950,7 +953,7 @@ export default function RegicideApp() {
             <button onClick={()=>setSoundEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔊 {t(lang,"An","On")}</button>
           </div>
         </div>
-        <div className="rounded-xl px-4 py-3 space-y-1.5" style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
+        <div className="rounded-xl px-4 py-3 space-y-1.5" style={{background:"rgba(255,255,255,0.06)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12)"}}>
           <p className="text-white/70 text-xs font-bold tracking-widest uppercase mb-2">Shortcuts</p>
           {[["1–8",t(lang,"Karte wählen","Select card")],["↵",t(lang,"Spielen","Play")],["Y",t(lang,"Passen","Yield")],["Esc",t(lang,"Abwählen","Deselect")],["P",t(lang,"Pause","Pause")],...(numPlayers===1&&soloJestersAvail>0?[["J","Jester"]]:[])].map(([key,desc],i)=>(
             <div key={i} className="flex items-center justify-between">
@@ -1016,10 +1019,10 @@ export default function RegicideApp() {
             <div className="text-white/70 text-xs font-bold uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-lg">{phase}</div>
           </div>
           <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} />
-          <div className="p-2 md:p-3 rounded-xl" style={{background:"rgba(26,26,46,0.9)",border:"2px solid rgba(201,168,76,0.4)",borderRadius:12}}>
+          <div className="p-2 md:p-3 rounded-xl" style={{background:"rgba(26,26,60,0.4)",backdropFilter:"blur(32px) saturate(180%)",border:"1.5px solid rgba(201,168,76,0.35)",borderRadius:16,boxShadow:"0 8px 40px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,220,100,0.15), inset 0 -1px 0 rgba(0,0,0,0.15)"}}>
             <div className="flex items-center gap-2 flex-wrap">
               {phase==="jester" && (
-                <div className="flex-1 px-3 py-2 rounded-xl" style={{background:"rgba(168,85,247,0.2)",border:"1px solid rgba(168,85,247,0.4)"}}>
+                <div className="flex-1 px-3 py-2 rounded-xl" style={{background:"rgba(168,85,247,0.15)",backdropFilter:"blur(20px)",border:"1.5px solid rgba(168,85,247,0.35)",boxShadow:"inset 0 1.5px 0 rgba(220,180,255,0.25), 0 4px 20px rgba(168,85,247,0.15)"}}>
                   <p className="text-purple-200 font-bold text-sm">🃏 {t(lang,"Jester! Wähle nächsten Spieler:","Jester! Choose next player:")}</p>
                   <div className="flex gap-2 mt-1 flex-wrap">
                     {game.players.map((_,pi)=>(<button key={pi} onClick={()=>chooseNextPlayer(pi)} className={`px-3 py-1 text-white/90 text-sm font-bold rounded-lg ${glass.btnPurple}`}>{t(lang,`Spieler ${pi+1}`,`Player ${pi+1}`)}</button>))}
@@ -1092,7 +1095,7 @@ export default function RegicideApp() {
             })}
           </div>
           <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.4</span></div>
+          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.6</span></div>
         </div>
       </div>
     );
@@ -1328,7 +1331,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.4</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.6</span>
           </div>
       </div>
     );
@@ -1487,7 +1490,7 @@ ${rankLabel}`;
   };
 
   const ActionBar = () => (
-    <div className="p-2 md:p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.15)" }}>
+    <div className="p-2 md:p-3 rounded-2xl" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(24px)", border: "1px solid rgba(255,255,255,0.15)" }}>
       <div className="flex items-center gap-2 flex-wrap">
         {phase === "jester" && (
           <div className="flex-1 px-3 py-2 rounded-xl" style={{ background: "rgba(168,85,247,0.2)", border: "1px solid rgba(168,85,247,0.4)" }}>
