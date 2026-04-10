@@ -1,4 +1,4 @@
-// v5.3 – Schritte 11,12,14,15,17
+// v5.4 – Regicide-Design-Übernahme – Schritte 11,12,14,15,17
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -150,7 +150,7 @@ function PlayingCard({ card, selected, onClick, disabled, small = false }) {
       <div className={`text-xs font-black leading-tight rotate-180 ${color}`}>{card.rank}<br />{card.suit}</div>
       {card.attack > 0 && (
         <div className="absolute bottom-0.5 left-0 right-0 text-center">
-          <span className="text-xs font-bold opacity-70 text-white">⚔{card.attack}</span>
+          <span className="text-xs font-bold text-white/90">⚔{card.attack}</span>
         </div>
       )}
     </div>
@@ -216,25 +216,25 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
           <span className="text-3xl drop-shadow">{enemy.rank}</span>
           <span className={`text-2xl ${isRed ? "text-red-400" : "text-white"}`}>{enemy.suit}</span>
           <div>
-            <p className="text-white/80 font-black text-sm leading-tight">
+            <p className="text-white font-black text-sm leading-tight">
               {lang === "de"
                 ? enemy.rank === "J" ? "Bube" : enemy.rank === "Q" ? "Dame" : "König"
                 : enemy.rank === "J" ? "Jack" : enemy.rank === "Q" ? "Queen" : "King"}
             </p>
-            <p className={`text-xs font-bold ${isRed ? "text-red-300" : "text-gray-300"}`}>
+            <p className={`text-xs font-bold ${isRed ? "text-red-300" : "text-slate-200"}`}>
               {lang === "de" ? SUIT_NAMES_DE[enemy.suit] : SUIT_NAMES_EN[enemy.suit]}
             </p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-white/50 text-xs">{lang === "de" ? "Angriff" : "Attack"}</p>
-          <p className="text-red-300 font-black text-lg">⚔️ {enemy.attack}</p>
+          <p className="text-white/80 text-xs font-semibold">{lang === "de" ? "Angriff" : "Attack"}</p>
+          <p className="text-red-200 font-black text-lg drop-shadow">⚔️ {enemy.attack}</p>
         </div>
       </div>
       <div>
         <div className="flex justify-between text-xs text-white/50 mb-1">
           <span>HP</span>
-          <span>{enemy.currentHp} / {enemy.hp}</span>
+          <span className="text-white font-bold">{enemy.currentHp} / {enemy.hp}</span>
         </div>
         <div className="w-full rounded-full h-2" style={{ background: "rgba(255,255,255,0.1)" }}>
           <div className="h-2 rounded-full transition-all duration-500" style={{ width: `${hpPct}%`, background: hpColor, boxShadow: `0 0 8px ${hpColor}` }} />
@@ -242,7 +242,7 @@ function EnemyCard({ enemy, lang, tableCards = [] }) {
       </div>
       {tableCards.length > 0 && (
         <div className="flex flex-wrap gap-1 items-center">
-          <span className="text-white/30 text-xs">{lang === "de" ? "Tisch:" : "Table:"}</span>
+          <span className="text-white/70 text-xs font-semibold">{lang === "de" ? "Tisch:" : "Table:"}</span>
           {tableCards.map((c, i) => (
             <span key={i} className={`text-xs px-1.5 py-0.5 rounded font-bold ${c.suit === "\u2665" || c.suit === "\u2666" ? "text-red-300 bg-red-900/30" : "text-white/80 bg-white/10"}`}>{c.rank}{c.suit}</span>
           ))}
@@ -343,10 +343,10 @@ export default function RegicideApp() {
   };
   const [theme, setTheme] = useState("fantasy");
   const glass = {
-    btn: "backdrop-blur-md bg-white/15 border border-white/30 hover:bg-white/25 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.3)] rounded-xl transition-all duration-200",
-    btnPrimary: "backdrop-blur-md bg-white/90 border border-white/60 hover:bg-white text-gray-900 font-black shadow-[0_4px_20px_rgba(255,255,255,0.3),inset_0_1px_0_rgba(255,255,255,0.8)] rounded-xl transition-all duration-200 hover:scale-105",
-    btnDanger: "backdrop-blur-md bg-red-500/30 border border-red-400/40 hover:bg-red-500/50 text-red-200 shadow-[inset_0_1px_0_rgba(255,100,100,0.3)] rounded-xl transition-all duration-200",
-    btnPurple: "backdrop-blur-md bg-purple-500/30 border border-purple-400/40 hover:bg-purple-500/50 text-purple-200 shadow-[inset_0_1px_0_rgba(180,100,255,0.3)] rounded-xl transition-all duration-200",
+    btn: "backdrop-blur-md bg-white/20 border border-white/40 hover:bg-white/30 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] rounded-xl transition-all duration-200",
+    btnPrimary: "backdrop-blur-md bg-white border border-white/80 hover:bg-white/90 text-gray-900 font-black shadow-[0_4px_20px_rgba(255,255,255,0.35),inset_0_1px_0_rgba(255,255,255,0.9)] rounded-xl transition-all duration-200 hover:scale-105",
+    btnDanger: "backdrop-blur-md bg-red-600/50 border border-red-400/60 hover:bg-red-600/70 text-white font-semibold shadow-[inset_0_1px_0_rgba(255,120,120,0.4)] rounded-xl transition-all duration-200",
+    btnPurple: "backdrop-blur-md bg-purple-600/50 border border-purple-400/60 hover:bg-purple-600/70 text-white font-semibold shadow-[inset_0_1px_0_rgba(200,120,255,0.4)] rounded-xl transition-all duration-200",
   };
   // Schritt 15 – Log-Animationen: neue Einträge tracken
   const [newLogIdx, setNewLogIdx] = useState(-1);
@@ -921,7 +921,7 @@ export default function RegicideApp() {
               <span className="text-xl">{s.icon}</span>
               <div>
                 <div className="font-black text-lg leading-none" style={{color:s.color}}>{s.value}</div>
-                <div className="text-white/35 text-xs mt-0.5">{lang==="de"?s.labelDe:s.labelEn}</div>
+                <div className="text-white/75 text-xs mt-0.5">{lang==="de"?s.labelDe:s.labelEn}</div>
               </div>
             </div>
           ))}
@@ -939,22 +939,22 @@ export default function RegicideApp() {
             </div>
           </div>
           <div className="text-right">
-            <div className="text-white/40 text-xs">{t(lang,"Feinde","Enemies")}</div>
+            <div className="text-white/75 text-xs font-semibold">{t(lang,"Feinde","Enemies")}</div>
             <div className="text-white font-bold">{game.enemyDeck.length+1}</div>
           </div>
         </div>}
         <div className="flex items-center justify-between">
-          <span className="text-white/50 text-sm">{t(lang,"Sound","Sound")}</span>
+          <span className="text-white/85 text-sm font-semibold">{t(lang,"Sound","Sound")}</span>
           <div className="flex gap-2">
             <button onClick={()=>setSoundEnabled(false)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${!soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔇 {t(lang,"Aus","Off")}</button>
             <button onClick={()=>setSoundEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔊 {t(lang,"An","On")}</button>
           </div>
         </div>
         <div className="rounded-xl px-4 py-3 space-y-1.5" style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)"}}>
-          <p className="text-white/30 text-xs font-bold tracking-widest uppercase mb-2">Shortcuts</p>
+          <p className="text-white/70 text-xs font-bold tracking-widest uppercase mb-2">Shortcuts</p>
           {[["1–8",t(lang,"Karte wählen","Select card")],["↵",t(lang,"Spielen","Play")],["Y",t(lang,"Passen","Yield")],["Esc",t(lang,"Abwählen","Deselect")],["P",t(lang,"Pause","Pause")],...(numPlayers===1&&soloJestersAvail>0?[["J","Jester"]]:[])].map(([key,desc],i)=>(
             <div key={i} className="flex items-center justify-between">
-              <kbd className="text-white/60 text-xs font-mono bg-white/10 px-2 py-0.5 rounded">{key}</kbd>
+              <kbd className="text-white font-mono text-xs bg-white/20 border border-white/30 px-2 py-0.5 rounded">{key}</kbd>
               <span className="text-white/40 text-xs">{desc}</span>
             </div>
           ))}
@@ -1009,14 +1009,14 @@ export default function RegicideApp() {
               <button onClick={() => setPaused(true)} className={`px-3 py-1.5 text-sm font-bold ${glass.btn}`}>⏸ {t(lang,"Pause","Pause")}</button>
             </div>
             <div className="flex gap-2 text-xs flex-wrap justify-center">
-              <span className="text-white/60">👑 <span className="text-white font-bold">{enemiesLeft}</span></span>
-              <span className="text-white/60">🃏 <span className="text-white font-bold">{game.drawPile.length}</span></span>
-              <span className="text-white/60">🗑 <span className="text-white font-bold">{game.discardPile.length}</span></span>
+              <span className="text-white/90 font-semibold">👑 <span className="text-yellow-300 font-black">{enemiesLeft}</span></span>
+              <span className="text-white/90 font-semibold">🃏 <span className="text-blue-200 font-black">{game.drawPile.length}</span></span>
+              <span className="text-white/90 font-semibold">🗑 <span className="text-orange-200 font-black">{game.discardPile.length}</span></span>
             </div>
-            <div className="text-white/30 text-xs">{phase}</div>
+            <div className="text-white/70 text-xs font-bold uppercase tracking-widest bg-white/10 px-2 py-0.5 rounded-lg">{phase}</div>
           </div>
           <EnemyCard enemy={game.currentEnemy} lang={lang} tableCards={game.tableCards} />
-          <div className="p-2 md:p-3 rounded-2xl" style={{background:"rgba(255,255,255,0.07)",backdropFilter:"blur(24px)",border:"1px solid rgba(255,255,255,0.15)"}}>
+          <div className="p-2 md:p-3 rounded-xl" style={{background:"rgba(26,26,46,0.9)",border:"2px solid rgba(201,168,76,0.4)",borderRadius:12}}>
             <div className="flex items-center gap-2 flex-wrap">
               {phase==="jester" && (
                 <div className="flex-1 px-3 py-2 rounded-xl" style={{background:"rgba(168,85,247,0.2)",border:"1px solid rgba(168,85,247,0.4)"}}>
@@ -1077,8 +1077,8 @@ export default function RegicideApp() {
             })}
           </div>
           {/* Schritt 15 – Animierter Log */}
-          <div className="rounded-2xl p-3 max-h-32 overflow-y-auto" style={{background:"rgba(0,0,0,0.25)",backdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.08)"}}>
-            <p className="text-xs mb-1 font-bold tracking-widest uppercase text-white/30">{t(lang,"Log","Log")}</p>
+          <div className="rounded-lg p-3 max-h-32 overflow-y-auto" style={{background:"rgba(0,0,0,0.5)",border:"1px solid rgba(201,168,76,0.2)"}}>
+          <p className="text-xs mb-1 font-bold tracking-widest uppercase" style={{color:"rgba(201,168,76,0.7)"}}>{t(lang,"Log","Log")}</p>
             {log.map((entry,i)=>{
               const isDefeat=entry.includes("besiegt")||entry.includes("defeated");
               const isAttack=entry.includes("⚔")||entry.includes("👿");
@@ -1092,7 +1092,7 @@ export default function RegicideApp() {
             })}
           </div>
           <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.3</span></div>
+          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.4</span></div>
         </div>
       </div>
     );
@@ -1256,17 +1256,17 @@ export default function RegicideApp() {
   if (screen === "menu") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)" }}>
-        <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-40 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #7c3aed, transparent 70%)" }} />
-        <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 rounded-full opacity-30 blur-3xl pointer-events-none" style={{ background: "radial-gradient(circle, #0ea5e9, transparent 70%)" }} />
+        style={{ background: "#0a0a0f", backgroundImage: "radial-gradient(ellipse at 20% 20%, rgba(45,27,105,0.3) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(139,0,0,0.2) 0%, transparent 50%)" }}>
         <div className="text-center mb-8 relative">
-          <h1 className="text-6xl md:text-8xl font-black mb-2 drop-shadow-2xl" style={{ color: "rgba(255,255,255,0.95)", textShadow: "0 0 40px rgba(255,255,255,0.3)" }}>
-            ⚔️ Coup d'État
+          <div className="text-6xl mb-2" style={{ animation: "bounce 2s ease-in-out infinite" }}>👑</div>
+          <h1 className="font-black mb-2" style={{ fontFamily: "Georgia, serif", fontSize: "clamp(36px,8vw,80px)", color: "#c9a84c", textShadow: "0 0 30px rgba(201,168,76,0.8), 2px 2px 0 #000", letterSpacing: 8, animation: "glow 3s ease-in-out infinite alternate" }}>
+            COUP D'ÉTAT
           </h1>
-          <p className="text-white/60 text-lg">{t(lang, "Das kooperative Kartenspiel", "The cooperative card game")}</p>
+          <style>{`@keyframes glow { from { text-shadow: 0 0 20px rgba(201,168,76,0.6), 2px 2px 0 #000; } to { text-shadow: 0 0 50px rgba(201,168,76,1), 0 0 100px rgba(201,168,76,0.4), 2px 2px 0 #000; } } @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }`}</style>
+            <p style={{ color: "#e8d5a3", letterSpacing: 5, fontSize: 14, opacity: 0.8, fontFamily: "Georgia, serif" }}>{t(lang, "Das Kooperative Kartenspiel", "The Cooperative Card Game")}</p>
         </div>
-        <div className="relative w-full max-w-md space-y-5 p-8 rounded-3xl"
-          style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(40px)", border: "1px solid rgba(255,255,255,0.18)", boxShadow: "0 8px 64px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)" }}>
+        <div className="relative w-full max-w-md space-y-5 p-8"
+          style={{ background: "linear-gradient(135deg,rgba(26,26,46,0.95),rgba(22,33,62,0.95))", border: "2px solid #c9a84c", borderRadius: 16, boxShadow: "0 0 40px rgba(201,168,76,0.2)" }}>
           <div className="flex gap-2 justify-center">
             <button onClick={() => setLang("de")} className={`px-4 py-2 rounded-xl font-bold transition-all text-sm ${lang === "de" ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🇩🇪 Deutsch</button>
             <button onClick={() => setLang("en")} className={`px-4 py-2 rounded-xl font-bold transition-all text-sm ${lang === "en" ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🇬🇧 English</button>
@@ -1312,9 +1312,9 @@ export default function RegicideApp() {
               <button onClick={() => setSoundEnabled(true)} className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${soundEnabled ? "bg-white/90 text-gray-900 shadow-lg" : glass.btn}`}>🔊 {t(lang, "An", "On")}</button>
               </div>
             </div>
-          <button onClick={initGame} className={`w-full py-4 font-black text-xl ${glass.btnPrimary}`}>{t(lang, "Spiel Starten ⚔️", "Start Game ⚔️")}</button>
-          <button onClick={() => setScreen("rules")} className={`w-full py-2.5 font-bold text-sm ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
-          <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 font-bold text-sm ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
+          <button onClick={initGame} className={`w-full py-3 ${glass.btnPrimary}`}>{t(lang, "⚔️ Spiel Starten", "⚔️ Start Game")}</button>
+          <button onClick={() => setScreen("rules")} className={`w-full py-2.5 ${glass.btn}`}>📖 {t(lang, "Regelwerk lesen", "Read Rules")}</button>
+          <button onClick={() => setScreen("highscores")} className={`w-full py-2.5 ${glass.btn}`}>🏆 {t(lang, "Bestenliste", "Highscores")}</button>
           {showRules && (
             <div className="rounded-2xl p-4 text-white/70 text-xs space-y-2 max-h-64 overflow-y-auto" style={{ background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.1)" }}>
               <p className="font-bold text-white/90">{t(lang, "Ziel:", "Goal:")}</p>
@@ -1328,7 +1328,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.3</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.4</span>
           </div>
       </div>
     );
@@ -1581,7 +1581,7 @@ ${rankLabel}`;
     const suggestedIds = isDiscardTarget ? getAutoDiscardSuggestion(player.hand, discardNeeded) : [];
     return (
       // Schritt 17 – Mobile: overflow-x-auto für Kartenhand
-      <div className="rounded-2xl p-2 md:p-3 transition-all" style={{ background: isDiscardTarget ? "rgba(239,68,68,0.18)" : isActive ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", border: isDiscardTarget ? "2px solid rgba(239,68,68,0.6)" : isActive ? "1px solid rgba(255,255,255,0.4)" : "1px solid rgba(255,255,255,0.1)", boxShadow: isDiscardTarget ? "0 0 24px rgba(239,68,68,0.3)" : undefined }}>
+      <div className="rounded-xl p-2 md:p-3 transition-all" style={{ background: isDiscardTarget ? "rgba(139,0,0,0.2)" : isActive ? "linear-gradient(135deg,rgba(13,40,74,0.3),rgba(26,26,46,0.8))" : "rgba(26,26,46,0.5)", border: isDiscardTarget ? "2px solid #cc2200" : isActive ? "2px solid #1a4a8a" : "1px solid rgba(201,168,76,0.15)", boxShadow: isDiscardTarget ? "0 0 20px rgba(204,34,0,0.3)" : undefined }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? "bg-white/90 text-gray-900" : "bg-white/15 text-white"}`}>{pi + 1}</span>
@@ -1615,7 +1615,7 @@ ${rankLabel}`;
     // Shortcut hint bar rendered below TurnOrder in JSX
 
   const themeConfig = CARD_THEMES[theme] || CARD_THEMES.fantasy;
-  const bgStyle = { background: themeConfig.bg };
+  const bgStyle = { background: themeConfig.bg, backgroundImage: "radial-gradient(ellipse at 20% 20%, rgba(45,27,105,0.3) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(139,0,0,0.2) 0%, transparent 50%)" };
   const accentGlow = themeConfig.accent;
   // Schritt 18 – Light Mode: Header-Textfarben
   const headerText = "text-white/60";
