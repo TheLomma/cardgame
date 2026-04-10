@@ -1,6 +1,6 @@
-// v5.9 – Features A+B+C+D: Floating-Damage, HP-Shake, Spieler-Namen editierbar, Rundenzeitmesser
-// v5.8 – Stabil (Doppel-Banner, doppelter Return, newDiscard-Fix)
-// v5.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
+// v6.0 – PauseOverlay im Game-Return eingebunden: Floating-Damage, HP-Shake, Spieler-Namen editierbar, Rundenzeitmesser
+// v4.8 – Stabil (Doppel-Banner, doppelter Return, newDiscard-Fix)
+// v4.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -1006,7 +1006,6 @@ export default function RegicideApp() {
   };
 
   const getAutoDiscardSuggestion = (hand, needed) => {
-    // find minimal set of cards that covers 'needed' damage
     const sorted = [...hand].sort((a, b) => getCardValue(b) - getCardValue(a));
     const result = [];
     let remaining = needed;
@@ -1017,6 +1016,65 @@ export default function RegicideApp() {
     }
     return remaining <= 0 ? result : [];
   };
+
+  // === KI-ASSISTENT ===
+  const [aiEnabled, setAiEnabled] = useState(true);
+  const [showAiSuggestion, setShowAiSuggestion] = useState(false);
+
+  const getAiSuggestion = () => {
+    if (!game || phase !== "play") return null;
+    const hand = game.players[game.currentPlayerIndex].hand;
+    const enemy = game.currentEnemy;
+    const hpLeft = enemy.currentHp;
+
+    // Bewerte jede mögliche Kartenkombination
+    const candidates = [];
+
+    // Einzelkarten
+    for (const card of hand) {
+      if (card.type === "jester") continue;
+      const atk = calcAttack([card], enemy);
+      candidates.push({ ids: [card.id], atk, kills: atk >= hpLeft });
+    }
+
+    // Gleicher Rang Combos (Wert <= 10)
+    const byRank = {};
+    for (const card of hand) {
+      if (card.type === "jester" || ["J","Q","K"].includes(card.rank)) continue;
+      if (!byRank[card.rank]) byRank[card.rank] = [];
+      byRank[card.rank].push(card);
+    }
+    for (const rank in byRank) {
+      const group = byRank[rank];
+      for (let size = 2; size <= group.length; size++) {
+        const combo = group.slice(0, size);
+        const total = combo.reduce((s, c) => s + getCardValue(c), 0);
+        if (total > 10) break;
+        const atk = calcAttack(combo, enemy);
+        candidates.push({ ids: combo.map(c => c.id), atk, kills: atk >= hpLeft });
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    // Priorität: 1) tötet Feind genau/overkill minimal, 2) maximaler Schaden
+    const killers = candidates.filter(c => c.kills);
+    if (killers.length > 0) {
+      // bevorzuge genau tödlichen Schaden (minimize overkill)
+      killers.sort((a, b) => a.atk - b.atk);
+      return killers[0];
+    }
+    candidates.sort((a, b) => b.atk - a.atk);
+    return candidates[0];
+  };
+
+  const applyAiSuggestion = () => {
+    const sug = getAiSuggestion();
+    if (!sug) return;
+    setSelectedCards(sug.ids);
+    setShowAiSuggestion(false);
+  };
+  // === END KI-ASSISTENT ===
 
   const PauseOverlay = () => !paused ? null : (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -1066,14 +1124,22 @@ export default function RegicideApp() {
           </div>
         </div>}
         <div className="flex items-center justify-between">
-          <span className="text-white/85 text-sm font-semibold">{t(lang,"Sound","Sound")}</span>
+          <span className="text-white font-bold text-sm">🔊 {t(lang,"Sound","Sound")}</span>
           <div className="flex gap-2">
-            <button onClick={()=>setSoundEnabled(false)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${!soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔇 {t(lang,"Aus","Off")}</button>
-            <button onClick={()=>setSoundEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔊 {t(lang,"An","On")}</button>
+            <button onClick={()=>setSoundEnabled(false)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${!soundEnabled?"bg-white text-gray-900 font-black shadow-lg":"bg-white/10 text-white/50 border border-white/20"}`}>🔇 {t(lang,"Aus","Off")}</button>
+            <button onClick={()=>setSoundEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${soundEnabled?"bg-green-500 text-white font-black shadow-lg shadow-green-500/40":"bg-white/10 text-white/50 border border-white/20"}`}>🔊 {t(lang,"An","On")}</button>
           </div>
         </div>
         <div className="rounded-xl px-4 py-3 space-y-1.5" style={{background:"rgba(255,255,255,0.06)",backdropFilter:"blur(16px)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"inset 0 1px 0 rgba(255,255,255,0.12)"}}>
           <p className="text-white/70 text-xs font-bold tracking-widest uppercase mb-2">Shortcuts</p>
+            {/* KI Toggle */}
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-white/70 text-xs font-bold">KI-Assistent</span>
+              <div className="flex gap-1">
+                <button onClick={()=>setAiEnabled(false)} className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-all ${!aiEnabled?"bg-white/90 text-gray-900":"bg-white/10 text-white/50"}`}>{t(lang,"Aus","Off")}</button>
+                <button onClick={()=>setAiEnabled(true)} className={`px-2 py-0.5 text-xs font-bold rounded-lg transition-all ${aiEnabled?"bg-purple-400 text-white":"bg-white/10 text-white/50"}`}>{t(lang,"An","On")}</button>
+              </div>
+            </div>
           {[["1–8",t(lang,"Karte wählen","Select card")],["↵",t(lang,"Spielen","Play")],["Y",t(lang,"Passen","Yield")],["Esc",t(lang,"Abwählen","Deselect")],["P",t(lang,"Pause","Pause")],...(numPlayers===1&&soloJestersAvail>0?[["J","Jester"]]:[])].map(([key,desc],i)=>(
             <div key={i} className="flex items-center justify-between">
               <kbd className="text-white font-mono text-xs bg-white/20 border border-white/30 px-2 py-0.5 rounded">{key}</kbd>
@@ -1166,7 +1232,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
           </div>
         </div>
       </div>
@@ -1263,7 +1329,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
           </div>
         </div>
       </div>
@@ -1352,7 +1418,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.9</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v6.0</span>
           </div>
       </div>
     );
@@ -1443,7 +1509,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.9</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v6.0</span>
           </div>
         </div>
       </div>
@@ -1547,6 +1613,16 @@ ${rankLabel}`;
           </div>
         )}
         <div className="flex gap-2 ml-auto flex-wrap">
+          {phase === "play" && aiEnabled && (() => {
+            const sug = getAiSuggestion();
+            return sug ? (
+              <button onClick={applyAiSuggestion} className={`px-3 py-2 text-sm font-bold ${glass.btnPurple}`}
+                title={t(lang, `KI empfiehlt: ${sug.ids.length} Karte(n), ${sug.atk} Schaden${sug.kills ? " ☠️ tötet!" : ""}`, `AI suggests: ${sug.ids.length} card(s), ${sug.atk} dmg${sug.kills ? " ☠️ kills!" : ""}`)}
+              >
+                🤖 {t(lang, `KI: ⚔️${sug.atk}${sug.kills ? " ☠️" : ""}`, `AI: ⚔️${sug.atk}${sug.kills ? " ☠️" : ""}`)}
+              </button>
+            ) : null;
+          })()}
           {phase === "play" && selectedCards.length > 0 && (
             <button onClick={() => setSelectedCards([])} className={`px-3 py-2 text-white/80 text-sm ${glass.btn}`}>{t(lang, "Abwählen", "Deselect")}</button>
           )}
@@ -1650,7 +1726,55 @@ ${rankLabel}`;
       <div className="absolute top-[-100px] left-[-100px] w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none" style={{ background: `radial-gradient(circle, ${accentGlow}, transparent 70%)` }} />
       <div className="absolute bottom-[-80px] right-[-80px] w-80 h-80 rounded-full opacity-15 blur-3xl pointer-events-none" style={{ background: `radial-gradient(circle, ${accentGlow}, transparent 70%)` }} />
 
-      {animMsg && (
+      {paused && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{background:"rgba(0,0,0,0.8)",backdropFilter:"blur(16px)"}} onClick={(e)=>{if(e.target===e.currentTarget)setPaused(false);}}>
+            <div className="w-full max-w-md rounded-3xl p-6 space-y-4" style={{background:"rgba(15,12,41,0.92)",border:"1.5px solid rgba(255,255,255,0.22)",boxShadow:"0 32px 80px rgba(0,0,0,0.7)"}}>
+              <div className="text-center">
+                <div className="text-4xl mb-1">⏸</div>
+                <h2 className="text-2xl font-black text-white">{t(lang,"Pause","Paused")}</h2>
+                <p className="text-white/40 text-xs mt-1">{t(lang,"Klicke außerhalb oder drücke P zum Fortfahren","Click outside or press P to resume")}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {icon:"⚔️",labelDe:"Schaden (Runde)",labelEn:"Damage (round)",value:roundStats.damage,color:"#f87171"},
+                  {icon:"👑",labelDe:"Feinde besiegt",labelEn:"Enemies defeated",value:totalStats.enemies,color:"#fbbf24"},
+                  {icon:"🃏",labelDe:"Karten gespielt",labelEn:"Cards played",value:totalStats.cards,color:"#60a5fa"},
+                  {icon:"🗂",labelDe:"Stapel",labelEn:"Draw pile",value:game.drawPile.length,color:"#a78bfa"},
+                  {icon:"🗑",labelDe:"Ablage",labelEn:"Discard",value:game.discardPile.length,color:"#fb923c"},
+                  {icon:"❤️",labelDe:"Feind HP",labelEn:"Enemy HP",value:game.currentEnemy.currentHp+"/"+game.currentEnemy.hp,color:"#f87171"},
+                ].map((s,i)=>(
+                  <div key={i} className="rounded-xl p-3 flex items-center gap-3" style={{background:"rgba(255,255,255,0.07)",border:`1px solid ${s.color}33`}}>
+                    <span className="text-xl">{s.icon}</span>
+                    <div>
+                      <div className="font-black text-lg leading-none" style={{color:s.color}}>{s.value}</div>
+                      <div className="text-white/75 text-xs mt-0.5">{lang==="de"?s.labelDe:s.labelEn}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white font-bold text-sm">🤖 {t(lang,"KI-Assistent","AI Assistant")}</span>
+                <div className="flex gap-2">
+                  <button onClick={()=>setAiEnabled(false)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${!aiEnabled?"bg-white text-gray-900 font-black shadow-lg":"bg-white/10 text-white/50 border border-white/20"}`}>{t(lang,"Aus","Off")}</button>
+                  <button onClick={()=>setAiEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${aiEnabled?"bg-purple-500 text-white font-black shadow-lg shadow-purple-500/40":"bg-white/10 text-white/50 border border-white/20"}`}>🤖 {t(lang,"An","On")}</button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/85 text-sm font-semibold">{t(lang,"Sound","Sound")}</span>
+                <div className="flex gap-2">
+                  <button onClick={()=>setSoundEnabled(false)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${!soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔇 {t(lang,"Aus","Off")}</button>
+                  <button onClick={()=>setSoundEnabled(true)} className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${soundEnabled?"bg-white/90 text-gray-900":glass.btn}`}>🔊 {t(lang,"An","On")}</button>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={()=>{setPaused(false);setScreen("menu");setGame(null);}} className={`flex-1 py-2.5 font-bold text-sm ${glass.btnDanger}`}>🏠 {t(lang,"Aufgeben","Quit")}</button>
+                <button onClick={()=>setPaused(false)} className={`flex-1 py-2.5 font-black ${glass.btnPrimary}`}>▶ {t(lang,"Weiter","Resume")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {animMsg && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 px-8 py-4 rounded-2xl font-black text-xl text-white shadow-2xl animate-bounce text-center"
           style={{ background: animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "rgba(120,80,0,0.95)" : "rgba(30,0,60,0.85)", backdropFilter: "blur(20px)", border: `1px solid ${animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "rgba(251,191,36,0.6)" : "rgba(255,255,255,0.2)"}`, boxShadow: animMsg.includes("BESIEGT") || animMsg.includes("DEFEATED") ? "0 0 40px rgba(251,191,36,0.4)" : undefined }}>
           {animMsg}
@@ -1671,8 +1795,10 @@ ${rankLabel}`;
               <span className="opacity-50" style={{ color: "#a78bfa", fontSize: 9 }}>{t(lang,"Feinde","Foes")}</span>
             </div>
           </div>
-          <div className={`text-xs ${headerText} text-center`}>
-            <span className={`font-bold ${headerTextStrong}`}>{t(lang, "Phase", "Phase")}: </span>
+          <div className={`text-xs ${headerText} text-center flex items-center gap-2`}>
+            <button onClick={() => setAiEnabled(v => !v)} className={`px-2 py-1 text-xs font-bold rounded-lg transition-all ${aiEnabled ? "bg-purple-500/30 border border-purple-400/50 text-purple-200" : "bg-white/10 border border-white/20 text-white/40"}`}>
+              🤖 KI {aiEnabled ? t(lang, "An", "On") : t(lang, "Aus", "Off")}
+            </button>
             <span className={`font-bold ${headerTextStrong}`}>{phase}</span>
           </div>
           <div className={`text-xs text-white/40`}>{t(lang, "Feinde", "Foes")}: <span className={`font-bold text-white/70`}>{game.enemyDeck.length+1}</span></div>
