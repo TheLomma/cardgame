@@ -1,3 +1,4 @@
+// v5.8 – Stabil (Doppel-Banner, doppelter Return, newDiscard-Fix)
 // v5.7 – Bugfixes: Feind-Schaden-Spieler (Fix#1), Royal-Handkarten (Fix#2), doppeltes style (Fix#3)
 import { useState, useRef, useEffect } from "react";
 
@@ -104,6 +105,98 @@ function getHandSize(numPlayers) {
 }
 
 const t = (lang, de, en) => (lang === "de" ? de : en);
+
+function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
+  if (!game || numPlayers < 1) return null;
+  const activeIdx = game.currentPlayerIndex;
+  const phaseColor = phase === "discard" ? "#f87171" : phase === "jester" ? "#c084fc" : "#4ade80";
+  const phaseLabel = phase === "discard"
+    ? (lang === "de" ? "⚠️ Schaden abwerfen" : "⚠️ Discard damage")
+    : phase === "jester"
+    ? (lang === "de" ? "🃏 Nächsten Spieler wählen" : "🃏 Choose next player")
+    : (lang === "de" ? "🎮 Am Zug" : "🎮 Active");
+  return (
+    <div className="w-full rounded-2xl px-3 py-2 mb-2" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)" }}>
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: phaseColor }}>{phaseLabel}</span>
+        {numPlayers > 1 && <span className="text-white/30 text-xs">{lang === "de" ? `Runde: Spieler ${activeIdx + 1}` : `Turn: Player ${activeIdx + 1}`}</span>}
+      </div>
+      {numPlayers > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {game.players.map((player, pi) => {
+            const isActive = pi === activeIdx;
+            const hasYielded = (lastYielded || []).includes(pi);
+            const isDiscard = phase === "discard" && isActive;
+            return (
+              <div key={pi} className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl" style={{ background: isDiscard ? "rgba(239,68,68,0.25)" : isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.06)", border: isDiscard ? "1.5px solid rgba(239,68,68,0.7)" : isActive ? "1.5px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.12)", transform: isActive ? "scale(1.05)" : "scale(1)", opacity: hasYielded && !isActive ? 0.5 : 1 }}>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black" style={{ background: isActive ? "#fff" : "rgba(255,255,255,0.15)", color: isActive ? "#111" : "rgba(255,255,255,0.5)" }}>{pi + 1}</span>
+                <span className="text-xs font-bold" style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.4)" }}>{player.name}</span>
+                {isActive && <span style={{ color: phaseColor }}>▶</span>}
+                {hasYielded && !isActive && <span className="text-white/30 text-xs">✓</span>}
+                <span className="text-white/30 text-xs">({player.hand.length})</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {numPlayers === 1 && (
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black" style={{ background: "#fff", color: "#111" }}>1</span>
+          <span className="text-white font-bold text-sm">{game.players[0].name}</span>
+          <span style={{ color: phaseColor }}>▶ {phaseLabel}</span>
+          <span className="ml-auto text-white/30 text-xs">{game.players[0].hand.length} {lang === "de" ? "Karten" : "cards"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// === FEATURE 1: Spieler-Rundenübersicht Banner – DUPE ===
+function PlayerTurnBanner({ game, lang, phase, numPlayers, lastYielded }) {
+  if (!game || numPlayers < 1) return null;
+  const activeIdx = game.currentPlayerIndex;
+  const phaseColor = phase === "discard" ? "#f87171" : phase === "jester" ? "#c084fc" : "#4ade80";
+  const phaseLabel = phase === "discard"
+    ? (lang === "de" ? "⚠️ Schaden abwerfen" : "⚠️ Discard damage")
+    : phase === "jester"
+    ? (lang === "de" ? "🃏 Nächsten Spieler wählen" : "🃏 Choose next player")
+    : (lang === "de" ? "🎮 Am Zug" : "🎮 Active");
+  return (
+    <div className="w-full rounded-2xl px-3 py-2 mb-2" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(20px)", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.15)" }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-bold tracking-widest uppercase" style={{ color: phaseColor }}>{phaseLabel}</span>
+        {numPlayers > 1 && <span className="text-white/30 text-xs">{lang === "de" ? `Runde: Spieler ${activeIdx + 1}` : `Turn: Player ${activeIdx + 1}`}</span>}
+      </div>
+      {numPlayers > 1 && (
+        <div className="flex gap-2 flex-wrap">
+          {game.players.map((player, pi) => {
+            const isActive = pi === activeIdx;
+            const hasYielded = (lastYielded || []).includes(pi);
+            const isDiscard = phase === "discard" && isActive;
+            return (
+              <div key={pi} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all duration-300" style={{ background: isDiscard ? "rgba(239,68,68,0.25)" : isActive ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.06)", border: isDiscard ? "1.5px solid rgba(239,68,68,0.7)" : isActive ? "1.5px solid rgba(255,255,255,0.5)" : "1px solid rgba(255,255,255,0.12)", transform: isActive ? "scale(1.05)" : "scale(1)", opacity: hasYielded && !isActive ? 0.5 : 1 }}>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-black" style={{ background: isActive ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.15)", color: isActive ? "#111" : "rgba(255,255,255,0.6)" }}>{pi + 1}</span>
+                <span className="text-xs font-bold" style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.4)" }}>{player.name}</span>
+                {isActive && <span className="text-xs" style={{ color: phaseColor }}>▶</span>}
+                {hasYielded && !isActive && <span className="text-xs text-white/30">✓</span>}
+                <span className="text-white/30 text-xs ml-0.5">({player.hand.length})</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {numPlayers === 1 && (
+        <div className="flex items-center gap-2">
+          <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black" style={{ background: "rgba(255,255,255,0.9)", color: "#111" }}>1</span>
+          <span className="text-white font-bold text-sm">{game.players[0].name}</span>
+          <span className="text-xs" style={{ color: phaseColor }}>▶ {phaseLabel}</span>
+          <span className="ml-auto text-white/30 text-xs">{game.players[0].hand.length} {lang === "de" ? "Karten" : "cards"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+// === END FEATURE 1 ===
 
 function PlayingCard({ card, selected, onClick, disabled, small = false }) {
   const [hovered, setHovered] = useState(false);
@@ -1120,7 +1213,7 @@ export default function RegicideApp() {
             })}
           </div>
           <style>{`@keyframes logSlideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}`}</style>
-          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.7</span></div>
+          <div className="text-center pb-2"><span style={{fontFamily:"monospace",background:"rgba(201,168,76,0.15)",border:"1px solid rgba(201,168,76,0.4)",color:"#c9a84c",padding:"2px 8px",borderRadius:6,fontSize:11,fontWeight:900}}>v5.8</span></div>
         </div>
       </div>
     );
@@ -1177,7 +1270,7 @@ export default function RegicideApp() {
             <button onClick={() => setScreen("menu")} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Zurück zum Menü", "Back to Menu")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v4.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
           </div>
         </div>
       </div>
@@ -1274,7 +1367,7 @@ export default function RegicideApp() {
             <button onClick={() => { setScreen("menu"); }} className={`px-8 py-3 font-black text-lg ${glass.btnPrimary}`}>{t(lang, "Verstanden – Spiel starten! ⚔️", "Got it – Start Game! ⚔️")}</button>
           </div>
           <div className="text-center pb-4">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v4.0</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
           </div>
         </div>
       </div>
@@ -1363,7 +1456,7 @@ export default function RegicideApp() {
         </div>
 
           <div className="text-center py-3">
-            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.7</span>
+            <span className="font-mono px-2 py-0.5 rounded-lg font-black text-xs bg-white text-gray-900">v5.8</span>
           </div>
       </div>
     );
@@ -1454,7 +1547,7 @@ ${rankLabel}`;
           </div>
 
           <div className="text-center py-1">
-            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.7</span>
+            <span className="font-mono bg-white text-gray-900 px-2 py-0.5 rounded-lg font-black text-xs">v5.8</span>
           </div>
         </div>
       </div>
@@ -1591,7 +1684,7 @@ ${rankLabel}`;
     </div>
   );
 
-  const TurnOrder = () => numPlayers <= 1 ? null : (
+  const _TurnOrder_UNUSED = () => numPlayers <= 1 ? null : (
     <div className="flex items-center gap-2 flex-wrap px-1">
       <span className="text-white/30 text-xs tracking-widest uppercase">{t(lang, 'Reihenfolge', 'Order')}:</span>
       {Array.from({ length: numPlayers }, (_, i) => {
@@ -1704,11 +1797,12 @@ ${rankLabel}`;
         <ActionBar />
 
         {/* Schritt 14 – Combo-Vorschau (verbessert) */}
-        <ComboPreview />
+          <ComboPreview />
 
-        {/* Players */}
-        <TurnOrder />
-        <div className="space-y-2">
+          {/* Feature 1: Spieler-Rundenübersicht Banner */}
+          <PlayerTurnBanner game={game} lang={lang} phase={phase} numPlayers={numPlayers} lastYielded={lastYielded} />
+
+                <div className="space-y-2">
           {game.players.map((player, pi) => (
             <PlayerHand key={pi} player={player} pi={pi} />
           ))}
