@@ -1,4 +1,4 @@
-// v6.4 – Statistik-Übersicht im Menü (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
+// v6.5 – Karten-Sortierung in der Hand (Feature 4): Arena vs. Dashboard Umschaltung im Game-Screen
 import { useState, useRef, useEffect } from "react";
 
 const SUITS = ["♥", "♦", "♣", "♠"];
@@ -366,6 +366,7 @@ export default function RegicideApp() {
   const [paused, setPaused] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
   const [floatingNums, setFloatingNums] = useState([]);
+  const [handSort, setHandSort] = useState("default");
   const [enemyShaking, setEnemyShaking] = useState(false);
   const [enemyDying, setEnemyDying] = useState(false);
   const floatIdRef = useRef(0);
@@ -1115,6 +1116,34 @@ export default function RegicideApp() {
     </div>
   );
 
+  const sortHand = (hand) => {
+    const order = { "\u2665": 0, "\u2666": 1, "\u2663": 2, "\u2660": 3 };
+    const copy = [...hand];
+    if (handSort === "value") return copy.sort((a, b) => getCardValue(b) - getCardValue(a));
+    if (handSort === "suit") return copy.sort((a, b) => (order[a.suit] ?? 4) - (order[b.suit] ?? 4) || getCardValue(b) - getCardValue(a));
+    if (handSort === "attack") return copy.sort((a, b) => b.attack - a.attack);
+    return copy;
+  };
+
+  const SortBar = () => (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      <span className="text-white/30 text-xs font-bold tracking-widest uppercase">{t(lang, "Sort:", "Sort:")}</span>
+      {[
+        { key: "default", label: t(lang, "Standard", "Default"), icon: "\uD83D\uDD22" },
+        { key: "value",   label: t(lang, "Wert", "Value"),       icon: "\u2B06\uFE0F" },
+        { key: "suit",    label: t(lang, "Farbe", "Suit"),       icon: "\u2660" },
+        { key: "attack",  label: t(lang, "Angriff", "Attack"),   icon: "\u2694\uFE0F" },
+      ].map(({ key, label, icon }) => (
+        <button key={key} onClick={() => setHandSort(key)}
+          className={`px-2 py-1 text-xs font-bold rounded-lg transition-all ${
+            handSort === key ? "bg-white/90 text-gray-900" : "bg-white/10 text-white/50 border border-white/20 hover:bg-white/20"
+          }`}>
+          {icon} {label}
+        </button>
+      ))}
+    </div>
+  );
+
   const PlayerHand = ({ player, pi, small }) => {
     const isActive = pi === game.currentPlayerIndex;
     const isDiscardTarget = phase === "discard" && isActive;
@@ -1129,8 +1158,9 @@ export default function RegicideApp() {
           <span className="text-white/40 text-xs">{player.hand.length} {t(lang,"Karten","cards")}</span>
           {isDiscardTarget && <span className="text-red-300 text-xs font-black animate-pulse">⚠️ {t(lang,"Abwerfen!","Discard!")}</span>}
         </div>
+        {isActive && <div className="mb-1.5"><SortBar /></div>}
         <div className={`flex gap-1.5 pb-1 ${isActive?"overflow-x-auto flex-nowrap":"flex-wrap"}`}>
-          {player.hand.map((card) => (
+          {sortHand(player.hand).map((card) => (
             <PlayingCard key={card.id} card={card}
               selected={selectedCards.includes(card.id) || (isDiscardTarget && suggestedIds.includes(card.id))}
               onClick={() => { if (phase==="discard"&&isActive) discardCardForDamage(card.id); else if (phase==="play"&&isActive) toggleCardSelection(card.id); }}
