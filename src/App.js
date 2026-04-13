@@ -44,7 +44,7 @@ const CARD_THEMES = {
 
 const ACHIEVEMENTS = [
   { id: "first_blood",  icon: "⚔️", title_de: "Erster Angriff",    title_en: "First Blood",     desc_de: "Erste Karte gespielt",             desc_en: "Played your first card",           check: (s) => s.totalCards >= 1 },
-  { id: "slayer",       icon: "💀", title_de: "Königsmörder",      title_en: "Regicide",        desc_de: "Ersten Feind besiegt",             desc_en: "Defeated your first enemy",        check: (s) => s.totalEnemies >= 1 },
+  { id: "slayer",       icon: "💀", title_de: "Königsmörder",      title_en: "Regicide (Achievement)",        desc_de: "Ersten Feind besiegt",             desc_en: "Defeated your first enemy",        check: (s) => s.totalEnemies >= 1 },
   { id: "all_royals",   icon: "👑", title_de: "Alle Royals",       title_en: "All Royals",      desc_de: "Alle 12 Feinde besiegt",           desc_en: "Defeated all 12 enemies",          check: (s) => s.totalEnemies >= 12 },
   { id: "centurion",    icon: "💯", title_de: "Centurion",         title_en: "Centurion",       desc_de: "100 Gesamtschaden verursacht",      desc_en: "Dealt 100 total damage",           check: (s) => s.totalDamage >= 100 },
   { id: "combo_master", icon: "🔥", title_de: "Kombo-Meister",     title_en: "Combo Master",    desc_de: "10 Karten in einer Runde gespielt", desc_en: "Played 10 cards in one round",     check: (s) => s.maxCardsInRound >= 10 },
@@ -778,7 +778,7 @@ export default function RegicideApp() {
     addLog(`🗑 ${t(lang, `Abgeworfen: ${card.rank}${card.suit !== "🃏" ? card.suit : ""} (${cardValue}), noch ${Math.max(0, newDiscardNeeded)} nötig`, `Discarded: ${card.rank}${card.suit !== "🃏" ? card.suit : ""} (${cardValue}), need ${Math.max(0, newDiscardNeeded)} more`)}`);
     let newPlayers = game.players.map((p, i) => i === game.currentPlayerIndex ? { ...p, hand: newHand } : p);
     if (newDiscardNeeded <= 0) {
-      const nextAfterDiscard = game._nextPlayerAfterDiscard ?? (game.currentPlayerIndex + 1) % numPlayers;
+      const nextAfterDiscard = game._nextPlayerAfterDiscard ?? game.currentPlayerIndex; // Bug3 fix: winner skips Step4
       let drawPile2 = [...game.drawPile];
       let mutableNewDiscard = [...newDiscard];
       if (drawPile2.length === 0 && mutableNewDiscard.length > 0) {
@@ -878,7 +878,11 @@ export default function RegicideApp() {
           const nextEnemy = g.enemyDeck[0];
           const remainingEnemies = g.enemyDeck.slice(1);
           const defeatedCards = [...(g.tableCards || []), ...taggedCards];
-          let newDrawPile = [...g.drawPile, ...shuffle(defeatedCards)];
+          const shuffledDefeated = shuffle(defeatedCards);
+            let newDrawPile = isExactKill
+              ? [{ ...enemy, _exactKill: true }, ...g.drawPile, ...shuffledDefeated]
+              : [...g.drawPile, ...shuffledDefeated];
+            if (isExactKill) addLog(t(lang, `⭐ Exact Kill! ${enemy.rank}${enemy.suit} oben auf den Nachziehstapel gelegt!`, `⭐ Exact Kill! ${enemy.rank}${enemy.suit} placed on top of Tavern deck!`));
           addLog(t(lang, `✅ ${enemy.rank}${enemy.suit} besiegt! Nächster Feind: ${nextEnemy.rank}${nextEnemy.suit}`, `✅ ${enemy.rank}${enemy.suit} defeated! Next: ${nextEnemy.rank}${nextEnemy.suit}`));
           const nextPlayer = (g.currentPlayerIndex + 1) % numPlayers;
           setLastYielded([]);
@@ -907,7 +911,7 @@ export default function RegicideApp() {
         spawnFloat(`👊 ${dmgNeeded}`, "#f87171", "text-3xl");
         setDiscardNeeded(dmgNeeded);
         setDiscardedSoFar(0);
-        setGame({ ...newState, _nextPlayerAfterDiscard: (nextPlayer + 1) % numPlayers });
+        setGame({ ...newState, _nextPlayerAfterDiscard: nextPlayer });
         setPhase("discard");
         setLastYielded([]);
       } else {
@@ -933,7 +937,16 @@ export default function RegicideApp() {
     addLog(t(lang, `Spieler ${pi + 1} passt.`, `Player ${pi + 1} yields.`));
     const nextPlayer = (pi + 1) % numPlayers;
     const updatedGame = (prev) => ({ ...prev, currentPlayerIndex: nextPlayer });
-    setLastYielded(newYielded);
+    // Alle-Passen-Prüfung
+      if (newYielded.length >= numPlayers) {
+        sfx.gameover();
+        addLog(t(lang, "Alle Spieler haben gepasst – Niederlage!", "All players yielded – defeat!"));
+        if (speedModeTimerRef.current) { clearTimeout(speedModeTimerRef.current); speedModeTimerRef.current = null; }
+        setGame({ ...game, lost: true });
+        setScreen("gameover");
+        return;
+      }
+      setLastYielded(newYielded);
     setGame(prev => ({ ...prev, currentPlayerIndex: nextPlayer }));
     checkCanActAndTriggerLose({ ...game, currentPlayerIndex: nextPlayer }, nextPlayer, newYielded);
   };
@@ -953,11 +966,11 @@ export default function RegicideApp() {
       <div className="text-center space-y-2">
         <style>{`@keyframes titleGlow{0%,100%{text-shadow:0 0 20px rgba(167,139,250,0.8),0 0 40px rgba(167,139,250,0.4)}50%{text-shadow:0 0 30px rgba(251,191,36,0.9),0 0 60px rgba(251,191,36,0.5)}} @keyframes titleIn{0%{opacity:0;transform:translateY(-20px) scale(0.92)}60%{opacity:1;transform:translateY(3px) scale(1.04)}100%{opacity:1;transform:translateY(0) scale(1)}} @keyframes swordBob{0%,100%{transform:rotate(-12deg) scale(1)}50%{transform:rotate(12deg) scale(1.18)}}`}</style>
             <div className="flex items-center justify-center gap-3" style={{animation:"titleIn 0.7s cubic-bezier(0.34,1.56,0.64,1) forwards"}}>
-              <span style={{display:"inline-block",animation:"swordBob 3s ease-in-out infinite",fontSize:38}}>⚔️</span>
-              <h1 className="text-6xl font-black tracking-tight" style={{background:"linear-gradient(135deg,#fff 0%,#ddd6fe 35%,#fbbf24 65%,#fff 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",animation:"titleGlow 3s ease-in-out infinite",letterSpacing:"-0.02em"}}>Regicide</h1>
-              <span style={{display:"inline-block",animation:"swordBob 3s ease-in-out infinite",animationDelay:"1.5s",fontSize:38}}>⚔️</span>
+              <span className="text-5xl">👑</span>
+              <h1 className="text-6xl font-black tracking-tight" style={{background:"linear-gradient(135deg,#fff 0%,#ddd6fe 35%,#fbbf24 65%,#fff 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text",letterSpacing:"-0.02em"}}>Coup d'État</h1>
+              <span className="text-5xl">👑</span>
             </div>
-        <p className="text-white/50 text-sm tracking-widest uppercase">Kooperatives Kartenspiel · v8.6</p>
+        <p className="text-white text-sm tracking-widest uppercase font-bold">Kooperatives Kartenspiel</p>
       </div>
 
       {dailyCompleted && (
@@ -969,10 +982,10 @@ export default function RegicideApp() {
 
       <div className="w-full max-w-sm space-y-3">
         <div className={`${glass.panel} p-4 space-y-3`}>
-          <p className="text-white/60 text-xs font-bold tracking-widest uppercase text-center">{lang === "de" ? "Anzahl Spieler" : "Number of Players"}</p>
+          <p className="text-white text-xs font-bold tracking-widest uppercase text-center">{lang === "de" ? "Anzahl Spieler" : "Number of Players"}</p>
           <div className="grid grid-cols-4 gap-2">
             {[1,2,3,4].map(n => (
-              <button key={n} onClick={() => setNumPlayers(n)} className={`py-2 rounded-xl font-black text-sm transition-all ${numPlayers === n ? "bg-white/30 text-white border border-white/60" : "bg-white/5 text-white/40 border border-white/10 hover:bg-white/10"}`}>{n}</button>
+              <button key={n} onClick={() => setNumPlayers(n)} className={`py-2 rounded-xl font-black text-sm transition-all ${numPlayers === n ? "bg-white/30 text-white border border-white/60 shadow-inner" : "bg-white/5 text-white/50 border border-white/15 hover:bg-white/15 hover:text-white/80"}`}>{n}</button>
             ))}
           </div>
           <button onClick={() => initGame(false)} className={`${glass.btnPrimary} w-full py-3 text-lg`}>
@@ -984,9 +997,9 @@ export default function RegicideApp() {
           <div className="flex items-center justify-between mb-2">
             <div>
               <p className="text-white font-black text-sm">{dailyChallenge.icon} {lang === "de" ? dailyChallenge.title_de : dailyChallenge.title_en}</p>
-              <p className="text-white/50 text-xs">{lang === "de" ? dailyChallenge.desc_de : dailyChallenge.desc_en}</p>
+              <p className="text-white text-xs">{lang === "de" ? dailyChallenge.desc_de : dailyChallenge.desc_en}</p>
             </div>
-            <span className="text-white/30 text-xs">{dailyChallenge.date}</span>
+            <span className="text-white/80 text-xs">{dailyChallenge.date}</span>
           </div>
           <button onClick={initDailyGame} disabled={!!dailyCompleted} className={`${glass.btn} w-full py-2 text-sm ${dailyCompleted ? "opacity-40 cursor-not-allowed" : ""}`}>
             {dailyCompleted ? (lang === "de" ? "✅ Heute erledigt" : "✅ Done today") : (lang === "de" ? "📅 Daily spielen" : "📅 Play Daily")}
@@ -1008,10 +1021,10 @@ export default function RegicideApp() {
 
         <div className="grid grid-cols-2 gap-2">
           <div className={`${glass.panel} p-3`}>
-            <p className="text-white/40 text-xs mb-2 text-center">{lang === "de" ? "Theme" : "Theme"}</p>
+            <p className="text-white text-xs font-bold mb-2 text-center">{lang === "de" ? "Theme" : "Theme"}</p>
             <div className="space-y-1">
               {Object.entries(CARD_THEMES).map(([k, v]) => (
-                <button key={k} onClick={() => setTheme(k)} className={`w-full py-1 px-2 rounded-lg text-xs font-bold transition-all ${theme === k ? "bg-white/20 text-white" : "text-white/40 hover:text-white/60"}`}>
+                <button key={k} onClick={() => setTheme(k)} className={`w-full py-1 px-2 rounded-lg text-xs font-bold transition-all ${theme === k ? "bg-white/30 text-white font-black border border-white/50 rounded-lg" : "text-white/50 hover:text-white/80 font-medium"}`}>
                   {lang === "de" ? v.name_de : v.name_en}
                 </button>
               ))}
@@ -1028,7 +1041,7 @@ export default function RegicideApp() {
         </div>
       </div>
 
-      <p className="text-white/20 text-xs text-center">v8.6 · Regicide © Fantastic Factories</p>
+      <p className="text-white/50 text-xs text-center">v8.7</p>
     </div>
   );
 
@@ -1056,7 +1069,7 @@ export default function RegicideApp() {
             </div>
           ))}
         </div>
-        <p className="text-white/20 text-xs">v8.6</p>
+        <p className="text-white/50 text-xs">v8.7</p>
       </div>
     );
   };
@@ -1082,7 +1095,7 @@ export default function RegicideApp() {
           );
         })}
       </div>
-      <p className="text-white/20 text-xs">v8.6</p>
+      <p className="text-white/50 text-xs">v8.7</p>
     </div>
   );
 
@@ -1109,7 +1122,7 @@ export default function RegicideApp() {
           </div>
         ))}
       </div>
-      <p className="text-white/20 text-xs">v8.6</p>
+      <p className="text-white/50 text-xs">v8.7</p>
     </div>
   );
 
@@ -1143,7 +1156,7 @@ export default function RegicideApp() {
         <button onClick={() => initGame(false)} className={`${glass.btnPrimary} flex-1 py-3`}>{lang === "de" ? "🎮 Nochmal" : "🎮 Play Again"}</button>
         <button onClick={() => setScreen("menu")} className={`${glass.btn} flex-1 py-3`}>{lang === "de" ? "🏠 Menü" : "🏠 Menu"}</button>
       </div>
-      <p className="text-white/20 text-xs">v8.6</p>
+      <p className="text-white/50 text-xs">v8.7</p>
     </div>
   );
 
@@ -1172,7 +1185,7 @@ export default function RegicideApp() {
         <button onClick={() => initGame(false)} className={`${glass.btnPrimary} flex-1 py-3`}>{lang === "de" ? "🎮 Nochmal" : "🎮 Play Again"}</button>
         <button onClick={() => setScreen("menu")} className={`${glass.btn} flex-1 py-3`}>{lang === "de" ? "🏠 Menü" : "🏠 Menu"}</button>
       </div>
-      <p className="text-white/20 text-xs">v8.6</p>
+      <p className="text-white/50 text-xs">v8.7</p>
     </div>
   );
 
@@ -1234,7 +1247,7 @@ export default function RegicideApp() {
             <div className="flex items-center gap-3">
               <span className="text-white/50 text-xs font-mono">{formatTime(elapsedSeconds)}</span>
               {game.isDaily && <span className="text-yellow-300 text-xs font-bold">📅 {dailyChallenge.icon}</span>}
-              <span className="text-white/30 text-xs">v8.6</span>
+              <span className="text-white/30 text-xs">v8.7</span>
             </div>
             <div className="flex gap-2">
               <button onClick={() => setGameLayout("arena")} className={`${glass.btn} px-2 py-1 text-xs`}>Arena</button>
@@ -1422,7 +1435,7 @@ export default function RegicideApp() {
           </div>
         </div>
 
-        <p className="text-white/15 text-xs text-center">v8.6</p>
+        <p className="text-white/50 text-xs text-center">v8.7</p>
 
         {/* Floating numbers */}
         <div className="fixed inset-0 pointer-events-none z-50">
